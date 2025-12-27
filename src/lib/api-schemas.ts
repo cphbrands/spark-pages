@@ -11,6 +11,7 @@ export const AllowedBlockTypes = [
   'FAQ',
   'CTASection',
   'Footer',
+  'Form',
 ] as const;
 
 export const AllowedBlockTypeSchema = z.enum(AllowedBlockTypes);
