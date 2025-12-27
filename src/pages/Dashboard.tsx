@@ -12,6 +12,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { PromptGenerator } from '@/components/PromptGenerator';
+import { TemplatePicker } from '@/components/TemplatePicker';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -19,25 +20,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { pages, templates, createPageFromTemplate, createBlankPage, deletePage, duplicatePage } = useBuilderStore();
+  const { pages, createBlankPage, deletePage, duplicatePage } = useBuilderStore();
   const [showTemplates, setShowTemplates] = useState(false);
-
-  const handleCreateFromTemplate = (templateId: string) => {
-    const newPage = createPageFromTemplate(templateId);
-    setShowTemplates(false);
-    navigate(`/builder/pages/${newPage.id}`);
-  };
 
   const handleCreateBlank = () => {
     const newPage = createBlankPage();
@@ -230,44 +219,7 @@ export default function Dashboard() {
       </main>
 
       {/* Template Selection Dialog */}
-      <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
-        <DialogContent className="max-w-4xl bg-builder-surface border-builder-border text-builder-text">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Choose a Template</DialogTitle>
-          </DialogHeader>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 max-h-[60vh] overflow-y-auto">
-            {templates.map(template => (
-              <div
-                key={template.id}
-                onClick={() => handleCreateFromTemplate(template.id)}
-                className="p-4 rounded-xl border border-builder-border bg-builder-bg hover:border-builder-accent cursor-pointer transition-all duration-300 group"
-              >
-                <div 
-                  className="h-32 rounded-lg mb-4 flex items-center justify-center"
-                  style={{ 
-                    backgroundColor: template.theme.mode === 'dark' ? '#1e293b' : '#f8fafc',
-                  }}
-                >
-                  <span 
-                    className="text-lg font-bold opacity-40"
-                    style={{ color: template.theme.primaryColor }}
-                  >
-                    {template.templateName}
-                  </span>
-                </div>
-                
-                <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors">
-                  {template.templateName}
-                </h3>
-                <p className="text-sm text-builder-text-muted">
-                  {template.templateDescription}
-                </p>
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <TemplatePicker open={showTemplates} onOpenChange={setShowTemplates} />
     </div>
   );
 }

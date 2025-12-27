@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageRenderer } from '@/components/PageRenderer';
+import { ThemeSettings } from '@/components/ThemeSettings';
 import { BlockType, defaultBlockProps, BlockPropsSchemas } from '@/lib/schemas';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -491,73 +492,11 @@ export default function Editor() {
               </div>
             </TabsContent>
             
-            <TabsContent value="theme" className="mt-0 p-4 space-y-4">
-              <div>
-                <Label className="text-builder-text-muted">Mode</Label>
-                <Select
-                  value={page.theme.mode}
-                  onValueChange={(v: 'light' | 'dark') => updatePageTheme(page.id, { mode: v })}
-                >
-                  <SelectTrigger className="mt-1 bg-builder-bg border-builder-border text-builder-text">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-builder-surface border-builder-border">
-                    <SelectItem value="light" className="text-builder-text">Light</SelectItem>
-                    <SelectItem value="dark" className="text-builder-text">Dark</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label className="text-builder-text-muted">Primary Color</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <input
-                    type="color"
-                    value={page.theme.primaryColor}
-                    onChange={(e) => updatePageTheme(page.id, { primaryColor: e.target.value })}
-                    className="w-10 h-10 rounded cursor-pointer border-0"
-                  />
-                  <Input
-                    value={page.theme.primaryColor}
-                    onChange={(e) => updatePageTheme(page.id, { primaryColor: e.target.value })}
-                    className="flex-1 bg-builder-bg border-builder-border text-builder-text"
-                    maxLength={7}
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label className="text-builder-text-muted">Font</Label>
-                <Select
-                  value={page.theme.font}
-                  onValueChange={(v: 'inter' | 'outfit' | 'system') => updatePageTheme(page.id, { font: v })}
-                >
-                  <SelectTrigger className="mt-1 bg-builder-bg border-builder-border text-builder-text">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-builder-surface border-builder-border">
-                    <SelectItem value="outfit" className="text-builder-text">Outfit</SelectItem>
-                    <SelectItem value="inter" className="text-builder-text">Inter</SelectItem>
-                    <SelectItem value="system" className="text-builder-text">System</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label className="text-builder-text-muted">Button Style</Label>
-                <Select
-                  value={page.theme.buttonStyle}
-                  onValueChange={(v: 'solid' | 'outline') => updatePageTheme(page.id, { buttonStyle: v })}
-                >
-                  <SelectTrigger className="mt-1 bg-builder-bg border-builder-border text-builder-text">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-builder-surface border-builder-border">
-                    <SelectItem value="solid" className="text-builder-text">Solid</SelectItem>
-                    <SelectItem value="outline" className="text-builder-text">Outline</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <TabsContent value="theme" className="mt-0 p-4">
+              <ThemeSettings 
+                theme={page.theme} 
+                onChange={(updates) => updatePageTheme(page.id, updates)} 
+              />
             </TabsContent>
           </Tabs>
         </div>
