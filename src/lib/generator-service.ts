@@ -1,4 +1,4 @@
-import { GenerateRequestSchema, GenerateResponseSchema, GenerateResponse, GenerateError } from './api-schemas';
+import { GenerateRequestSchema, GenerateResponseSchema, GenerateResponse, GenerateError, ReferenceInput } from './api-schemas';
 import { BlockPropsSchemas, BlockType } from './schemas';
 import { z } from 'zod';
 
@@ -34,13 +34,22 @@ function validateBlockProps(blocks: GenerateResponse['blocks']): z.ZodError | nu
 
 /**
  * Calls the external API to generate a landing page
+ * 
+ * Backend responsibilities:
+ * - Step A: Call OpenAI to generate JSON blocks + heroImagePrompt
+ * - Step B: Call image API with heroImagePrompt, get imageUrl
+ * - Inject imageUrl into Hero.props.imageUrl
+ * - Return final JSON to frontend
+ * 
+ * Frontend receives a single final JSON with everything included.
  */
 export async function generateLandingPage(
   prompt: string,
-  templateId?: string
+  templateId?: string,
+  reference?: ReferenceInput
 ): Promise<GeneratorResponse> {
   // Validate request
-  const requestValidation = GenerateRequestSchema.safeParse({ prompt, templateId });
+  const requestValidation = GenerateRequestSchema.safeParse({ prompt, templateId, reference });
   if (!requestValidation.success) {
     return {
       success: false,

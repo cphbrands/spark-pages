@@ -23,6 +23,8 @@ export const GeneratedBlockSchema = z.object({
 });
 
 // API Response schema
+// Backend handles: Step A (LLM → JSON + heroImagePrompt) + Step B (Image gen → inject imageUrl)
+// Frontend receives final JSON with Hero.props.imageUrl already populated
 export const GenerateResponseSchema = z.object({
   meta: z.object({
     title: z.string().min(1).max(100),
@@ -35,10 +37,19 @@ export const GenerateResponseSchema = z.object({
 
 export type GenerateResponse = z.infer<typeof GenerateResponseSchema>;
 
-// Request schema
+// Reference input for matching structure/style
+export const ReferenceInputSchema = z.object({
+  type: z.enum(['url', 'html', 'image']),
+  value: z.string().max(100000), // URL, HTML content, or base64 image
+}).optional();
+
+export type ReferenceInput = z.infer<typeof ReferenceInputSchema>;
+
+// Request schema - single prompt with optional reference
 export const GenerateRequestSchema = z.object({
   prompt: z.string().min(10, 'Prompt must be at least 10 characters').max(2000, 'Prompt must be under 2000 characters').trim(),
   templateId: z.string().optional(),
+  reference: ReferenceInputSchema,
 });
 
 export type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
