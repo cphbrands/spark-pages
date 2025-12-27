@@ -3,6 +3,7 @@ import { BlockPropsSchemas, BlockType } from './schemas';
 import { z } from 'zod';
 
 const API_ENDPOINT = '/api/generate';
+const API_KEY = import.meta.env.VITE_API_KEY || '';
 
 export interface GeneratorResult {
   success: true;
@@ -65,6 +66,7 @@ export async function generateLandingPage(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-API-Key': API_KEY,
       },
       body: JSON.stringify(requestValidation.data),
     });
