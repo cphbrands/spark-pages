@@ -1,0 +1,12 @@
+export { HeroBlock } from './HeroBlock';
+export { FeaturesBlock } from './FeaturesBlock';
+export { BenefitsBlock } from './BenefitsBlock';
+export { SocialProofBlock } from './SocialProofBlock';
+export { PricingBlock } from './PricingBlock';
+export { CountdownBlock } from './CountdownBlock';
+export { FAQBlock } from './FAQBlock';
+export { ImageGalleryBlock } from './ImageGalleryBlock';
+export { GuaranteeBlock } from './GuaranteeBlock';
+export { CTASectionBlock } from './CTASectionBlock';
+export { FooterBlock } from './FooterBlock';
+export { FormBlock } from './FormBlock';
