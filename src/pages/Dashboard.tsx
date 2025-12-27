@@ -11,6 +11,7 @@ import {
   Users,
   Sparkles
 } from 'lucide-react';
+import { PromptGenerator } from '@/components/PromptGenerator';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -93,6 +94,9 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* AI Generator */}
+        <PromptGenerator />
+
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-3xl font-bold text-builder-text mb-2">Your Pages</h2>
