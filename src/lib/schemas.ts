@@ -5,7 +5,14 @@ import { z } from 'zod';
 const ActionUrlSchema = z.union([
   z.string().url(),
   z.string().regex(/^#.*$/, 'Anchor link must start with #'),
-  z.string().regex(/^\/.*$/, 'Relative link must start with /'),
+  z.string().regex(/^\/.*/, 'Relative link must start with /'),
+  z.literal(''),
+]);
+
+// Accepts https URLs and data URLs (base64) for generated images.
+const ImageUrlSchema = z.union([
+  z.string().url(),
+  z.string().regex(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, 'Image data URL must be base64'),
   z.literal(''),
 ]);
 
@@ -34,7 +41,7 @@ export const HeroPropsSchema = z.object({
   subheadline: z.string().max(500).optional(),
   ctaText: z.string().max(50).optional(),
   ctaUrl: ActionUrlSchema.optional(),
-  imageUrl: z.string().url().optional().or(z.literal('')),
+  imageUrl: ImageUrlSchema.optional(),
   alignment: z.enum(['left', 'center', 'right']).optional(),
 });
 
