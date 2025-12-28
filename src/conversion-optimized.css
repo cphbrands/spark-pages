@@ -1,0 +1,106 @@
+/* conversion-optimized.css */
+/* These are PROVEN to increase conversions */
+
+/* 1. Red Urgency Colors */
+.urgency-red {
+  color: #ff0000;
+  font-weight: 900;
+  text-shadow: 1px 1px 0px #000;
+}
+
+/* 2. Blinking Elements (Annoying but works) */
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+.blink {
+  animation: blink 1s infinite;
+}
+
+/* 3. Fake Progress Bars (Makes it look like others are buying) */
+.progress-bar {
+  background: #f0f0f0;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 65%; /* Always show 65% full */
+  background: linear-gradient(90deg, #ff6b6b, #ff8e8e);
+  animation: progress-pulse 3s infinite;
+}
+
+@keyframes progress-pulse {
+  0% { opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { opacity: 0.8; }
+}
+
+/* 4. Fake Notification Styles */
+.notification-badge {
+  position: relative;
+}
+
+.notification-badge:after {
+  content: 'LIVE';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ff0000;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* 5. Price Strike-through Deception */
+.strike-price {
+  position: relative;
+  color: #999;
+}
+
+.strike-price:before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -5%;
+  width: 110%;
+  height: 3px;
+  background: #ff0000;
+  transform: rotate(-15deg);
+}
+
+/* 6. Fake "Best Value" Badge */
+.best-value {
+  position: relative;
+  border: 3px solid #ffd700;
+}
+
+.best-value:before {
+  content: '🔥 BEST VALUE';
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffd700;
+  color: #000;
+  font-weight: bold;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}

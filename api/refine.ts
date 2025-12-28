@@ -1,4 +1,16 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// Minimal runtime types to avoid dependency on @vercel/node types in edge/build
+type VercelRequest = { method?: string; headers: Record<string, string | string[] | undefined>; body?: unknown };
+type VercelResponse = {
+  status: (code: number) => VercelResponse;
+  json: (body: unknown) => void;
+  setHeader: (name: string, value: string) => void;
+  end: () => void;
+};
+
+// Minimal process env typing (no Node types required)
+declare const process: { env: Record<string, string | undefined> };
+
+import { runLLM } from './llm';
 
 // Rate limiting
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -199,7 +211,7 @@ const SYSTEM_PROMPT = `You are the world's top direct response copywriter and la
 - "Why [Percentage]% Of [Attempts] FAIL (And The [Percentage]% Who Succeed Use This ONE [Thing])"
 
 **TESTIMONIAL FORMULA:**
-"I was {initial_state} for {time_period}. I tried {failed_solution} and wasted ${amount}. Then I found {product}. In just {short_time}, I {achieved_result}. I wish I'd done this {time_period_ago} ago!" - {Name}, {Age}, {Location}
+"I was {initial_state} for {time_period}. I tried {failed_solution} and wasted $X,XXX. Then I found {product}. In just {short_time}, I {achieved_result}. I wish I'd done this {time_period_ago} ago!" - {Name}, {Age}, {Location}
 
 **COPY TECHNIQUES:**
 - Open loops: "What we discovered next changed everything..."
@@ -246,7 +258,8 @@ BE AGGRESSIVE. USE NUMBERS. MAKE IT CONVERT.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
   const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'];
-  const origin = req.headers.origin || '';
+  const originHeader = req.headers['origin'];
+  const origin = typeof originHeader === 'string' ? originHeader : Array.isArray(originHeader) ? originHeader[0] : '';
   
   if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
     res.setHeader('Access-Control-Allow-Origin', origin);
@@ -315,31 +328,19 @@ User's refinement request: ${prompt}`;
 
     userMessage += `\n\nReturn the complete updated page JSON.`;
     
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-5-mini-2025-08-07',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userMessage }
-        ],
-        response_format: { type: 'json_object' },
-        max_completion_tokens: 6000,
-      }),
+    const llmContent = await runLLM({
+      systemPrompt: SYSTEM_PROMPT,
+      userPrompt: userMessage,
+      maxTokens: 6000,
     });
-    
-    if (!openaiResponse.ok) {
-      const errorText = await openaiResponse.text();
-      console.error('OpenAI error:', errorText);
-      return res.status(500).json({ error: 'Failed to refine page' });
+
+    let refinedPage: any;
+    try {
+      refinedPage = JSON.parse(llmContent);
+    } catch (error) {
+      console.error('LLM JSON parse error:', error, llmContent);
+      return res.status(500).json({ error: 'Failed to parse LLM response as JSON' });
     }
-    
-    const openaiData = await openaiResponse.json();
-    const refinedPage = JSON.parse(openaiData.choices[0].message.content);
     
     // Normalize theme
     const t = refinedPage.theme ?? {};
