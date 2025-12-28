@@ -13,6 +13,7 @@ declare const process: { env: Record<string, string | undefined> };
 import { runLLM } from './llm.js';
 import { SYSTEM_PROMPT } from './prompt.js';
 import { enhanceWithDarkPatterns } from './manipulativeEnhancer.js';
+import { generateConversionPage } from './conversionEngine.js';
 
 // Rate limiting (in-memory - use Redis for production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -391,5 +392,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       code: 'UNHANDLED',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
+  }
+}
+
+// Minimal POST handler for app/edge style usage (does not use Vercel res helpers)
+export async function POST(req: Request) {
+  try {
+    const { prompt, reference, niche, enhance = true } = await req.json();
+
+    if (!prompt) {
+      return new Response(JSON.stringify({ error: 'Prompt is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const pageData = await generateConversionPage(prompt, {
+      niche,
+      reference,
+      enhance,
+    });
+
+    return new Response(JSON.stringify(pageData), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error: any) {
+    console.error('Generate error:', error);
+    return new Response(
+      JSON.stringify({ error: error?.message || 'Internal Server Error' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
