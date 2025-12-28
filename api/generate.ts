@@ -80,6 +80,24 @@ interface RequestData {
   reference?: { type: 'url' | 'html'; value: string };
 }
 
+function tryParseJsonObject(raw: string): any | null {
+  try {
+    return JSON.parse(raw);
+  } catch (firstErr) {
+    // Fallback: attempt to extract first/last curly block
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch (secondErr) {
+        console.error('Fallback JSON parse failed:', secondErr);
+      }
+    }
+    console.error('Primary JSON parse failed:', firstErr);
+    return null;
+  }
+}
+
 async function researchTopic(prompt: string): Promise<string> {
   const perplexityKey = process.env.PERPLEXITY_API_KEY;
   if (!perplexityKey) {
@@ -257,10 +275,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     if (!process.env.OPENAI_API_KEY) {
       console.error('Missing OPENAI_API_KEY');
-      return res.status(500).json({ error: 'Server misconfiguration: missing OPENAI_API_KEY' });
+      return res.status(500).json({ error: 'Server misconfiguration: missing OPENAI_API_KEY', code: 'MISSING_OPENAI_KEY' });
     }
 
-    let llmContent: string;
+    let llmContent: string | undefined;
     try {
       llmContent = await runLLM({
         systemPrompt: SYSTEM_PROMPT,
@@ -269,15 +287,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     } catch (err) {
       console.error('LLM generation failed:', err);
-      return res.status(502).json({ error: 'Generation failed. Please retry shortly.' });
+      return res.status(502).json({ error: 'Generation failed. Please retry shortly.', code: 'LLM_UPSTREAM' });
+    }
+
+    if (!llmContent || typeof llmContent !== 'string') {
+      console.error('Empty LLM response');
+      return res.status(502).json({ error: 'Empty response from LLM', code: 'LLM_EMPTY' });
     }
 
     let generatedContent: any;
-    try {
-      generatedContent = JSON.parse(llmContent);
-    } catch (error) {
-      console.error('LLM JSON parse error:', error, llmContent);
-      return res.status(500).json({ error: 'Failed to parse LLM response as JSON' });
+    generatedContent = tryParseJsonObject(llmContent);
+    if (!generatedContent) {
+      console.error('LLM JSON parse error. Raw content length:', llmContent.length);
+      return res.status(500).json({ error: 'Failed to parse LLM response as JSON', code: 'LLM_PARSE_ERROR' });
     }
     
     const { heroImagePrompt, ...pageJson } = generatedContent;
