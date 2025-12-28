@@ -1,7 +1,7 @@
 import { runLLM } from './llm.js';
 import { enhanceWithDarkPatterns } from './manipulativeEnhancer.js';
 
-// Niche-specific psychological triggers
+// Niche-specific psychological triggers (aligned with client presets)
 const NICHE_TRIGGERS = {
   'weight-loss': {
     painPoints: [
@@ -12,9 +12,9 @@ const NICHE_TRIGGERS = {
       'feeling bloated after meals'
     ],
     testimonials: [
-      { name: 'Sarah M.', result: 'Lost 28lbs in 12 weeks', quote: 'I finally fit into my wedding dress!' },
-      { name: 'Jessica L.', result: 'Size 16 to size 8', quote: 'No more yo-yo dieting cycle' },
-      { name: 'Maria K.', result: '-15lbs, +energy', quote: 'My 3pm cravings disappeared' }
+      "Sarah M. lost 28lbs in 12 weeks without giving up wine!",
+      'Jessica L. went from size 16 to size 8 in 90 days',
+      'Maria K. lost 15lbs and gained endless energy'
     ],
     priceAnchor: { original: 997, current: 97 }
   },
@@ -26,9 +26,9 @@ const NICHE_TRIGGERS = {
       'feeling stuck in your career'
     ],
     testimonials: [
-      { name: 'Mark T.', result: 'Made $5,247 in 30 days', quote: 'Quit my 9-5 after 6 months' },
-      { name: 'Taylor R.', result: 'Paid off $37k debt', quote: 'Finally financial freedom' },
-      { name: 'Alex J.', result: '$15k/month online', quote: 'From broke to thriving' }
+      'Mark T. made $5,247 in his first 30 days',
+      'Taylor R. paid off $37k debt in 90 days',
+      'Alex J. went from broke to $15k/month online'
     ],
     priceAnchor: { original: 2997, current: 497 }
   },
@@ -40,26 +40,76 @@ const NICHE_TRIGGERS = {
       'injuries that set you back'
     ],
     testimonials: [
-      { name: 'Mike S.', result: 'Gained 15lbs muscle', quote: 'First pull-up at age 40!' },
-      { name: 'Lisa P.', result: 'Couch to 5k in 30 days', quote: 'Never thought I could run' },
-      { name: 'David L.', result: '-12% body fat', quote: 'Finally confident at the beach' }
+      'Mike S. gained 15lbs muscle in 12 weeks',
+      'Lisa P. went from couch to 5k in 30 days',
+      'David L. lost 12% body fat in 90 days'
     ],
     priceAnchor: { original: 797, current: 197 }
+  },
+  relationships: {
+    painPoints: [
+      'lonely weekends with no plans',
+      "watching friends get married while you're single",
+      'failed relationships repeating the same patterns',
+      'dating apps that go nowhere'
+    ],
+    testimonials: [
+      'Chris found his soulmate in 30 days',
+      'Amanda broke her 5-year dating drought',
+      'Kevin went from single to engaged in 6 months'
+    ],
+    priceAnchor: { original: 1297, current: 297 }
+  },
+  productivity: {
+    painPoints: [
+      'overwhelmed by endless to-do lists',
+      'procrastinating important tasks',
+      'working long hours with little to show',
+      'constantly distracted and unfocused'
+    ],
+    testimonials: [
+      'Sam 3x his productivity in 2 weeks',
+      'Jamie went from overwhelmed to in-control',
+      'Taylor now finishes work by 3pm daily'
+    ],
+    priceAnchor: { original: 897, current: 197 }
+  },
+  business: {
+    painPoints: [
+      'struggling to find customers',
+      'cash flow worries every month',
+      'working IN the business instead of ON it',
+      'competitors stealing your market share'
+    ],
+    testimonials: [
+      'Sarah scaled to $50k/month in 6 months',
+      'Mike doubled his client base in 30 days',
+      'Lisa automated 80% of her business operations'
+    ],
+    priceAnchor: { original: 4997, current: 997 }
   }
 } as const;
 
-// Detect niche from prompt
+// Detect niche from prompt (fallback)
 function detectNiche(prompt: string): keyof typeof NICHE_TRIGGERS {
   const lower = prompt.toLowerCase();
 
-  if (lower.includes('weight') || lower.includes('diet') || lower.includes('fat') || lower.includes('lbs')) {
-    return 'weight-loss';
-  }
-  if (lower.includes('money') || lower.includes('income') || lower.includes('cash') || lower.includes('earn')) {
-    return 'money';
-  }
-  if (lower.includes('fitness') || lower.includes('gym') || lower.includes('muscle') || lower.includes('workout')) {
-    return 'fitness';
+  const nicheKeywords: Record<keyof typeof NICHE_TRIGGERS, string[]> = {
+    'weight-loss': ['weight', 'diet', 'fat', 'lbs', 'size', 'fit into', 'calorie'],
+    money: ['money', 'income', 'cash', 'earn', 'profit', 'debt', 'rich', 'wealth'],
+    fitness: ['fitness', 'gym', 'muscle', 'workout', 'exercise', 'strong', 'fit'],
+    relationships: ['relationship', 'dating', 'love', 'single', 'marriage', 'partner'],
+    productivity: ['productivity', 'focus', 'procrastinat', 'time management', 'efficient'],
+    business: ['business', 'client', 'customer', 'scale', 'revenue', 'profit'],
+  };
+
+  for (const [niche, keywords] of Object.entries(nicheKeywords) as Array<[
+    keyof typeof NICHE_TRIGGERS,
+    string[]
+  ]>) {
+    if (keywords.some((keyword) => lower.includes(keyword))) {
+      return niche;
+    }
   }
 
   return 'weight-loss'; // default
@@ -88,9 +138,9 @@ CRITICAL PSYCHOLOGICAL RULES (MUST FOLLOW):
    • Price increase warning: At midnight
 
 3. SOCIAL PROOF MANIPULATION:
-   • ${triggers.testimonials[0].name}: ${triggers.testimonials[0].result}
-   • ${triggers.testimonials[1].name}: ${triggers.testimonials[1].result}
-   • Add fake user counter: "Join 10,247+ successful members"
+  • ${triggers.testimonials[0]}
+  • ${triggers.testimonials[1]}
+  • Add fake user counter: "Join 10,247+ successful members"
 
 4. PRICE DECEPTION:
    • Original: $${triggers.priceAnchor.original} (crossed out)
@@ -108,7 +158,7 @@ Return ONLY valid JSON matching your existing schema.`;
 
 Niche: ${detectedNiche}
 Psychological Triggers: ${triggers.painPoints.slice(0, 3).join(', ')}
-Example Testimonials: ${triggers.testimonials.map((t) => `${t.name}: ${t.result}`).join(' | ')}
+Example Testimonials: ${triggers.testimonials.slice(0, 2).join(' | ')}
 Pricing Anchor: $${triggers.priceAnchor.original} → $${triggers.priceAnchor.current}
 
 Make it manipulative but plausible. Use the exact psychological formula above.`;

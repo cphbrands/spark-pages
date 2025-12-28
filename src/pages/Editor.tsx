@@ -46,6 +46,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { refineLandingPage } from '@/lib/refine-service';
 import { v4 as uuidv4 } from 'uuid';
+import { NICHE_OPTIONS, DARK_PATTERN_PRESETS } from '@/lib/conversionClient';
 
 const blockTypeLabels: Record<BlockType, string> = {
   Hero: 'Hero Section',
@@ -89,7 +90,10 @@ export default function Editor() {
 
   const [showAddBlock, setShowAddBlock] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [currentPrompt, setCurrentPrompt] = useState('');
+  const [selectedNiche, setSelectedNiche] = useState<string>('weight-loss');
+  const [enhanceWithDarkPatterns, setEnhanceWithDarkPatterns] = useState<boolean>(true);
 
   const CONVERSION_PRESETS = [
     {
@@ -219,6 +223,76 @@ Tone: Urgent, exclusive, transformational.`
       });
     } finally {
       setIsRefining(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!currentPrompt || currentPrompt.trim().length < 10) {
+      toast({
+        title: 'Prompt too short',
+        description: 'Please enter at least 10 characters to generate a page.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const requestBody = {
+        prompt: currentPrompt,
+        niche: selectedNiche,
+        enhance: enhanceWithDarkPatterns,
+      };
+
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': import.meta.env.VITE_API_KEY || '',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Generation failed: ${response.statusText}`);
+      }
+
+      const pageData = await response.json();
+
+      if (!page) return;
+
+      // Add IDs to blocks and update current page
+      const updatedBlocks = (pageData.blocks || []).map((b: any) => ({
+        id: uuidv4(),
+        type: b.type as BlockType,
+        props: b.props,
+      }));
+
+      updatePageMeta(page.id, {
+        ...page.meta,
+        title: pageData.meta?.title ?? page.meta.title,
+        description: pageData.meta?.description ?? page.meta.description,
+        // keep existing slug to avoid URL changes
+        slug: page.meta.slug,
+      });
+
+      updatePageTheme(page.id, pageData.theme || page.theme);
+      useBuilderStore.getState().updatePage(page.id, { blocks: updatedBlocks });
+
+      toast({
+        title: 'Page Generated',
+        description: 'Applied new conversion-focused content.',
+      });
+    } catch (error: any) {
+      console.error('Generation error:', error);
+      toast({
+        title: 'Generation failed',
+        description: error?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -571,6 +645,70 @@ Tone: Urgent, exclusive, transformational.`
           >
             <PageRenderer page={page} isPreview previewMode={previewMode} />
           </div>
+
+          {/* Niche selection and dark pattern presets */}
+          <div className="mb-6 space-y-4 mt-6">
+            {/* Niche Selection */}
+            <div>
+              <label className="block text-sm font-medium mb-2">🎯 Select Niche Psychology</label>
+              <div className="flex flex-wrap gap-2">
+                {NICHE_OPTIONS.map((niche) => (
+                  <button
+                    key={niche.id}
+                    type="button"
+                    onClick={() => setSelectedNiche(niche.id)}
+                    className={`inline-flex items-center px-3 py-2 rounded-lg border transition-colors ${
+                      selectedNiche === niche.id
+                        ? 'bg-purple-100 border-purple-300 text-purple-800 shadow-sm'
+                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="mr-2">{niche.icon}</span>
+                    <span>{niche.label}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Niche selection applies specialized psychological triggers
+              </p>
+            </div>
+
+            {/* Dark Pattern Presets */}
+            <div>
+              <label className="block text-sm font-medium mb-2">🔥 One-Click Dark Pattern Presets</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {DARK_PATTERN_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => {
+                      setCurrentPrompt(preset.prompt);
+                      setSelectedNiche(preset.niche);
+                    }}
+                    className="p-4 border rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors text-left"
+                  >
+                    <div className="text-2xl mb-2">{preset.icon}</div>
+                    <div className="font-medium text-gray-900">{preset.name}</div>
+                    <div className="text-sm text-gray-600 mt-1">Click to load preset</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Enhancement Toggle */}
+            <div className="flex items-center pt-2">
+              <input
+                type="checkbox"
+                id="enhance-toggle"
+                checked={enhanceWithDarkPatterns}
+                onChange={(e) => setEnhanceWithDarkPatterns(e.target.checked)}
+                className="h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+              />
+              <label htmlFor="enhance-toggle" className="ml-2 text-sm text-gray-700">
+                🧠 Auto-inject dark patterns (countdowns, fake notifications, price deception)
+              </label>
+            </div>
+          </div>
           
           {/* Preset prompts + psychology boosters */}
           <div className="mb-6">
@@ -591,6 +729,19 @@ Tone: Urgent, exclusive, transformational.`
               currentPrompt={currentPrompt}
               onBoost={setCurrentPrompt}
             />
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button 
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="bg-primary hover:bg-primary/90"
+              >
+                {isGenerating ? 'Generating…' : 'Generate with these settings'}
+              </Button>
+              <p className="text-xs text-gray-500 self-center">
+                Uses selected niche and dark-pattern enhancer
+              </p>
+            </div>
           </div>
 
           {/* AI Refine Prompt */}
