@@ -38,9 +38,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageRenderer } from '@/components/PageRenderer';
 import { ThemeSettings } from '@/components/ThemeSettings';
+import { RefinePrompt } from '@/components/RefinePrompt';
 import { BlockType, defaultBlockProps, BlockPropsSchemas } from '@/lib/schemas';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { refineLandingPage } from '@/lib/refine-service';
+import { v4 as uuidv4 } from 'uuid';
 
 const blockTypeLabels: Record<BlockType, string> = {
   Hero: 'Hero Section',
@@ -83,6 +86,55 @@ export default function Editor() {
   const selectedBlock = page?.blocks.find(b => b.id === selectedBlockId);
 
   const [showAddBlock, setShowAddBlock] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
+
+  const handleRefine = async (prompt: string) => {
+    if (!page) return;
+    
+    setIsRefining(true);
+    try {
+      const result = await refineLandingPage(prompt, page);
+      
+      if (!result.success) {
+        const errorMessage = 'error' in result ? result.error.message : 'Unknown error';
+        toast({
+          title: 'Refinement Failed',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Update the page with refined content
+      const { meta, theme, blocks } = result.data;
+      
+      // Generate new IDs for blocks to ensure uniqueness
+      const updatedBlocks = blocks.map(b => ({
+        id: uuidv4(),
+        type: b.type as BlockType,
+        props: b.props,
+      }));
+
+      updatePageMeta(page.id, meta);
+      updatePageTheme(page.id, theme);
+      
+      // Update blocks via updatePage (need to use the store directly)
+      useBuilderStore.getState().updatePage(page.id, { blocks: updatedBlocks });
+
+      toast({
+        title: 'Page Refined',
+        description: 'Your changes have been applied.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to refine page. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRefining(false);
+    }
+  };
 
   useEffect(() => {
     if (!page) {
@@ -414,7 +466,7 @@ export default function Editor() {
         </div>
 
         {/* Preview Area */}
-        <div className="flex-1 overflow-auto bg-builder-bg p-8">
+        <div className="flex-1 overflow-auto bg-builder-bg p-8 pb-32 relative">
           <div 
             className={cn(
               "mx-auto bg-white rounded-xl shadow-2xl overflow-hidden transition-all duration-300",
@@ -423,6 +475,9 @@ export default function Editor() {
           >
             <PageRenderer page={page} isPreview previewMode={previewMode} />
           </div>
+          
+          {/* AI Refine Prompt */}
+          <RefinePrompt onRefine={handleRefine} isRefining={isRefining} />
         </div>
 
         {/* Right Sidebar - Properties */}
