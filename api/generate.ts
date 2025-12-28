@@ -255,11 +255,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       userPrompt += `\n\nReference ${reference.type}: ${reference.value.substring(0, 5000)}`;
     }
     
-    const llmContent = await runLLM({
-      systemPrompt: SYSTEM_PROMPT,
-      userPrompt,
-      maxTokens: 6000,
-    });
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('Missing OPENAI_API_KEY');
+      return res.status(500).json({ error: 'Server misconfiguration: missing OPENAI_API_KEY' });
+    }
+
+    let llmContent: string;
+    try {
+      llmContent = await runLLM({
+        systemPrompt: SYSTEM_PROMPT,
+        userPrompt,
+        maxTokens: 6000,
+      });
+    } catch (err) {
+      console.error('LLM generation failed:', err);
+      return res.status(502).json({ error: 'Generation failed. Please retry shortly.' });
+    }
 
     let generatedContent: any;
     try {
