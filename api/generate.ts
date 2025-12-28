@@ -12,7 +12,7 @@ declare const process: { env: Record<string, string | undefined> };
 
 import { runLLM } from './llm.js';
 import { SYSTEM_PROMPT } from './prompt.js';
-import { enhanceWithDarkPatterns } from '../src/lib/manipulativeEnhancer';
+import { enhanceWithDarkPatterns } from './manipulativeEnhancer.js';
 
 // Rate limiting (in-memory - use Redis for production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();

@@ -11,7 +11,7 @@ type VercelResponse = {
 declare const process: { env: Record<string, string | undefined> };
 
 import { runLLM } from './llm.js';
-import { enhanceWithDarkPatterns } from '../src/lib/manipulativeEnhancer';
+import { enhanceWithDarkPatterns } from './manipulativeEnhancer.js';
 
 // Rate limiting
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
