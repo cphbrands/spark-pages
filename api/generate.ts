@@ -12,6 +12,7 @@ declare const process: { env: Record<string, string | undefined> };
 
 import { runLLM } from './llm.js';
 import { SYSTEM_PROMPT } from './prompt.js';
+import { enhanceWithDarkPatterns } from '../src/lib/manipulativeEnhancer';
 
 // Rate limiting (in-memory - use Redis for production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -272,6 +273,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (reference) {
       userPrompt += `\n\nReference ${reference.type}: ${reference.value.substring(0, 5000)}`;
     }
+
+    userPrompt += `\n\nRespond with a json object only, matching the schema.`;
     
     if (!process.env.OPENAI_API_KEY) {
       console.error('Missing OPENAI_API_KEY');
@@ -303,6 +306,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     
     const { heroImagePrompt, ...pageJson } = generatedContent;
+
+    // Apply dark-pattern enhancer to enforce urgency/scarcity stacking
+    try {
+      enhanceWithDarkPatterns(pageJson);
+    } catch (err) {
+      console.error('Enhancer failed, continuing with raw page JSON:', err);
+    }
 
     // Normalize theme to match frontend schema (prevents "Invalid response from API")
     const t = (pageJson as any).theme ?? {};

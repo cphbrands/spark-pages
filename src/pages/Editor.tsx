@@ -40,6 +40,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageRenderer } from '@/components/PageRenderer';
 import { ThemeSettings } from '@/components/ThemeSettings';
 import { RefinePrompt } from '@/components/RefinePrompt';
+import { PsychologyBooster } from '@/components/PsychologyBooster';
 import { BlockType, defaultBlockProps, BlockPropsSchemas } from '@/lib/schemas';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -88,6 +89,90 @@ export default function Editor() {
 
   const [showAddBlock, setShowAddBlock] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
+  const [currentPrompt, setCurrentPrompt] = useState('');
+
+  const CONVERSION_PRESETS = [
+    {
+      name: "🚨 Ultimate Sales Page",
+      description: "High-pressure with all psychological triggers",
+      prompt: `Create a HIGH-CONVERSION landing page that uses every psychological trick:
+
+1. AGONY SECTION: Amplify their pain with specific examples
+2. SCARCITY STACK: Timer + limited spots + bonus deadline
+3. SOCIAL PROOF: Fake testimonials with numbers (Sarah lost 28lbs in 12 weeks)
+4. PRICE DECEPTION: Show $997 crossed out, offer $97
+5. URGENCY: Live countdown, fake notifications, "almost sold out"
+6. RISK REVERSAL: 365-day money back guarantee
+7. ONE-CALL CLOSE: Final emotional push
+
+Niche: [Enter your niche]
+Desired conversion: 8%+
+Tone: Aggressive, urgent, empathetic when needed`
+    },
+    {
+      name: "🎣 Subscription Trap",
+      description: "Free trial that's hard to cancel",
+      prompt: `Create a landing page that traps users in a subscription:
+
+Core elements:
+1. FREE TRIAL that auto-bills (make cancellation hard)
+2. Sunk cost messaging: "Don't waste your progress"
+3. Value stacking: Make cancellation feel like huge loss
+4. Fake urgency: "Price increases after trial"
+5. Social proof: "94% of users stay subscribed"
+6. Hidden terms in light gray text
+
+Psychological triggers:
+• Loss aversion: "You'll lose access to X if you cancel"
+• Commitment: "Most successful users stay 12+ months"
+• Scarcity: "Limited spots at introductory price"
+
+Make it look generous but function as a trap.`
+    },
+    {
+      name: "🔥 Urgency Blast",
+      description: "Manufactured scarcity and FOMO",
+      prompt: `Generate a page with manufactured urgency:
+
+REQUIRED ELEMENTS:
+• Real-time countdown timer (24 hours)
+• Stock counter (shows 8 left, decreases randomly)
+• Fake notifications ("3 people bought in last 5 min")
+• Price ladder ("Price increases after next 5 sales")
+• Bonus deadline ("Free bonus expires in 2 hours")
+
+COPY TONE:
+URGENT, WARNING-BASED, FEAR OF MISSING OUT
+
+Example headlines:
+"⚠️ WARNING: This Offer Expires At Midnight"
+"🚨 ALERT: Only 3 Spots Left At This Price"
+"🔥 LAST CHANCE: Prices Increase In 01:59:33"`
+    },
+    {
+      name: "💰 Money-Making Page",
+      description: "Get rich quick with fake proofs",
+      prompt: `Create a "make money online" page:
+
+ELEMENTS:
+- Fake income screenshots (blurred but visible)
+- "From broke to $15k/month" story
+- Student testimonials with specific earnings
+- Limited mentorship spots (only 50)
+- Price: $5000 value for $497
+- Urgency: "Registration closes in 24 hours"
+- Bonus: "Free consulting session worth $997"
+
+PSYCHOLOGICAL TRICKS:
+- Social proof stacking
+- Scarcity manufacturing
+- Authority fabrication
+- Risk reversal (money back guarantee)
+- One-call close
+
+Tone: Urgent, exclusive, transformational.`
+    }
+  ];
 
   const handleRefine = async (prompt: string) => {
     if (!page) return;
@@ -487,8 +572,34 @@ export default function Editor() {
             <PageRenderer page={page} isPreview previewMode={previewMode} />
           </div>
           
+          {/* Preset prompts + psychology boosters */}
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-3">🎯 Conversion-Optimized Templates</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+              {CONVERSION_PRESETS.map((preset, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentPrompt(preset.prompt)}
+                  className="p-4 border rounded-lg text-left hover:bg-gray-50 transition-colors"
+                >
+                  <div className="font-medium mb-1">{preset.name}</div>
+                  <div className="text-sm text-gray-600">{preset.description}</div>
+                </button>
+              ))}
+            </div>
+            <PsychologyBooster 
+              currentPrompt={currentPrompt}
+              onBoost={setCurrentPrompt}
+            />
+          </div>
+
           {/* AI Refine Prompt */}
-          <RefinePrompt onRefine={handleRefine} isRefining={isRefining} />
+          <RefinePrompt 
+            onRefine={handleRefine} 
+            isRefining={isRefining} 
+            prompt={currentPrompt}
+            onPromptChange={setCurrentPrompt}
+          />
         </div>
 
         {/* Right Sidebar - Properties */}

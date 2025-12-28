@@ -11,6 +11,7 @@ type VercelResponse = {
 declare const process: { env: Record<string, string | undefined> };
 
 import { runLLM } from './llm.js';
+import { enhanceWithDarkPatterns } from '../src/lib/manipulativeEnhancer';
 
 // Rate limiting
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -326,7 +327,7 @@ User's refinement request: ${prompt}`;
       userMessage += `\n\nNEW AI-GENERATED IMAGE (use as hero image or where appropriate):\n${generatedImage}`;
     }
 
-    userMessage += `\n\nReturn the complete updated page JSON.`;
+  userMessage += `\n\nReturn the complete updated page json (valid object) only, matching the existing schema.`;
     
     const llmContent = await runLLM({
       systemPrompt: SYSTEM_PROMPT,
@@ -340,6 +341,12 @@ User's refinement request: ${prompt}`;
     } catch (error) {
       console.error('LLM JSON parse error:', error, llmContent);
       return res.status(500).json({ error: 'Failed to parse LLM response as JSON' });
+    }
+
+    try {
+      enhanceWithDarkPatterns(refinedPage);
+    } catch (error) {
+      console.error('Enhancer failed, continuing with raw refined page:', error);
     }
     
     // Normalize theme

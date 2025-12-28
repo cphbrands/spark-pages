@@ -1,0 +1,133 @@
+@keyframes urgency-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes blink {
+  0%, 100% { background-color: #dc2626; }
+  50% { background-color: #ef4444; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+/* Urgency & Scarcity Styles */
+.urgency-red {
+  color: #dc2626;
+  font-weight: 900;
+}
+
+.scarcity-badge {
+  background: linear-gradient(45deg, #dc2626, #ef4444);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  display: inline-block;
+  animation: urgency-pulse 2s infinite;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.fake-notification {
+  background: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  padding: 12px 16px;
+  margin: 8px 0;
+  font-size: 14px;
+  border-radius: 0 8px 8px 0;
+  animation: slideIn 0.5s ease-out;
+}
+
+.fake-notification::before {
+  content: "🔥 ";
+  font-weight: bold;
+}
+
+.price-deception {
+  position: relative;
+  padding: 16px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 12px;
+  border: 2px solid #0ea5e9;
+}
+
+.original-price {
+  position: relative;
+  color: #6b7280;
+  font-size: 1.5rem;
+}
+
+.original-price::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -5%;
+  width: 110%;
+  height: 3px;
+  background: #dc2626;
+  transform: rotate(-15deg);
+}
+
+.current-price {
+  color: #059669;
+  font-size: 2.5rem;
+  font-weight: 900;
+}
+
+.savings-badge {
+  background: #10b981;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 0.875rem;
+}
+
+/* Countdown Timer Styles */
+.countdown-timer {
+  background: #1e293b;
+  color: white;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  animation: blink 1.5s infinite;
+}
+
+.countdown-numbers {
+  font-family: 'Courier New', monospace;
+  font-size: 2.5rem;
+  font-weight: 900;
+  letter-spacing: 4px;
+}
+
+/* Sticky Bar (Fake Live Notifications) */
+.sticky-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: linear-gradient(90deg, #7c3aed, #8b5cf6);
+  color: white;
+  padding: 12px;
+  text-align: center;
+  animation: slideIn 0.3s ease-out;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Fake Testimonial Enhancement */
+.testimonial-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.testimonial-card::before {
+  content: "❝";
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  font-size: 4rem;
+  color: rgba(0, 0, 0, 0.1);
+  opacity: 0.5;
+}

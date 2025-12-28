@@ -7,16 +7,17 @@ import { cn } from '@/lib/utils';
 interface RefinePromptProps {
   onRefine: (prompt: string) => Promise<void>;
   isRefining: boolean;
+  prompt: string;
+  onPromptChange: (value: string) => void;
 }
 
-export function RefinePrompt({ onRefine, isRefining }: RefinePromptProps) {
-  const [prompt, setPrompt] = useState('');
+export function RefinePrompt({ onRefine, isRefining, prompt, onPromptChange }: RefinePromptProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleSubmit = async () => {
     if (!prompt.trim() || isRefining) return;
     await onRefine(prompt);
-    setPrompt('');
+    onPromptChange('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -55,7 +56,7 @@ export function RefinePrompt({ onRefine, isRefining }: RefinePromptProps) {
           <div className="p-4 pt-0 space-y-3">
             <Textarea
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+              onChange={(e) => onPromptChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="E.g., 'Make the headline more exciting', 'Add a FAQ section', 'Change to dark mode'..."
               className="min-h-[80px] bg-builder-bg border-builder-border text-builder-text placeholder:text-builder-text-muted resize-none"

@@ -93,10 +93,25 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "urgency-pulse": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.7" },
+        },
+        blink: {
+          "0%, 100%": { backgroundColor: "#dc2626" },
+          "50%": { backgroundColor: "#ef4444" },
+        },
+        "slide-in": {
+          from: { transform: "translateY(-100%)" },
+          to: { transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "urgency-pulse": "urgency-pulse 2s infinite",
+        blink: "blink 1.5s infinite",
+        "slide-in": "slide-in 0.5s ease-out",
       },
     },
   },
