@@ -360,7 +360,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
       } else {
-        console.error('Image generation failed, continuing without image');
+        const errorText = await imageResponse.text().catch(() => '');
+        console.error('Image generation failed, continuing without image', {
+          status: imageResponse.status,
+          statusText: imageResponse.statusText,
+          body: errorText?.slice(0, 5000),
+        });
       }
     }
     
