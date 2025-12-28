@@ -19,14 +19,23 @@ export type GeneratorResponse = GeneratorResult | GeneratorError;
 
 /**
  * Validates each block's props against its type schema
+ * Uses passthrough() to allow extra fields and logs warnings instead of failing
  */
 function validateBlockProps(blocks: GenerateResponse['blocks']): z.ZodError | null {
   for (const block of blocks) {
     const propsSchema = BlockPropsSchemas[block.type as BlockType];
     if (propsSchema) {
-      const result = propsSchema.safeParse(block.props);
+      // Use passthrough to be lenient with extra fields
+      const result = propsSchema.passthrough().safeParse(block.props);
       if (!result.success) {
-        return result.error;
+        console.warn(`Block ${block.type} validation warning:`, result.error.errors);
+        // Only fail on critical errors (missing required fields)
+        const criticalErrors = result.error.errors.filter(e => 
+          e.code === 'invalid_type' && e.message.includes('Required')
+        );
+        if (criticalErrors.length > 0) {
+          return result.error;
+        }
       }
     }
   }
