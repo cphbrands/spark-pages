@@ -67,7 +67,119 @@ interface RequestData {
   reference?: { type: 'url' | 'html'; value: string };
 }
 
-const SYSTEM_PROMPT = `You are a landing page generator. Given a user prompt, generate a complete landing page JSON structure that STRICTLY matches the schema below.
+// Research the topic using Perplexity
+async function researchTopic(prompt: string): Promise<string> {
+  const perplexityKey = process.env.PERPLEXITY_API_KEY;
+  if (!perplexityKey) {
+    console.log('No Perplexity API key, skipping research');
+    return '';
+  }
+
+  try {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${perplexityKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { 
+            role: 'system', 
+            content: `You are a master marketing researcher. Research the given topic and provide:
+1. Key pain points the target audience has
+2. Emotional triggers that drive purchasing decisions
+3. Competitor claims and positioning
+4. Statistics and social proof that would be persuasive
+5. Common objections and how to overcome them
+6. Power words and phrases that resonate with this audience
+Be concise but comprehensive. Focus on actionable insights for creating a high-converting landing page.` 
+          },
+          { role: 'user', content: `Research this topic for a landing page: ${prompt}` }
+        ],
+        search_recency_filter: 'month',
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Perplexity research failed:', await response.text());
+      return '';
+    }
+
+    const data = await response.json();
+    const research = data.choices?.[0]?.message?.content || '';
+    const citations = data.citations || [];
+    
+    return `MARKET RESEARCH:\n${research}\n\nSOURCES: ${citations.join(', ')}`;
+  } catch (error) {
+    console.error('Research error:', error);
+    return '';
+  }
+}
+
+// Search for relevant images
+async function searchImages(topic: string): Promise<string[]> {
+  const perplexityKey = process.env.PERPLEXITY_API_KEY;
+  if (!perplexityKey) return [];
+
+  try {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${perplexityKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'Find 3-5 high-quality, professional stock image URLs related to the topic. Return ONLY the direct image URLs (ending in .jpg, .png, .webp), one per line. No explanations.' 
+          },
+          { role: 'user', content: `Find professional images for: ${topic}` }
+        ],
+      }),
+    });
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    
+    // Extract URLs from response
+    const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|webp|gif)[^\s]*/gi;
+    const urls = content.match(urlRegex) || [];
+    
+    return urls.slice(0, 5);
+  } catch (error) {
+    console.error('Image search error:', error);
+    return [];
+  }
+}
+
+const SYSTEM_PROMPT = `You are an ELITE conversion copywriter and landing page architect. You create landing pages that are psychologically engineered to convert. You use proven persuasion techniques from Cialdini, Ogilvy, and modern neuromarketing.
+
+PERSUASION PRINCIPLES TO APPLY:
+- URGENCY & SCARCITY: Limited time, limited spots, price increases
+- SOCIAL PROOF: Testimonials, logos, numbers ("10,000+ customers")
+- AUTHORITY: Expert endorsements, certifications, media mentions
+- RECIPROCITY: Free value upfront before asking for anything
+- LOSS AVERSION: What they'll miss out on, pain of not acting
+- ANCHORING: Show higher prices first, then the deal
+- SPECIFICITY: Specific numbers ("347% increase" not "big increase")
+- EMOTIONAL TRIGGERS: Fear, aspiration, belonging, status
+- PATTERN INTERRUPT: Bold claims that stop scrolling
+
+COPYWRITING RULES:
+- Headlines: Use power words (Discover, Unlock, Transform, Secret, Proven)
+- Subheadlines: Agitate the pain, tease the solution
+- Benefits > Features: Focus on transformation, not specifications
+- Use "you" language, not "we" language
+- Include specific numbers and timeframes
+- Add micro-commitments (small CTAs before big ones)
+- Use the PAS formula: Problem → Agitation → Solution
+- Create FOMO with countdown timers and scarcity
 
 CRITICAL RULES:
 1. Output MUST be valid JSON.
@@ -75,6 +187,8 @@ CRITICAL RULES:
 3. Every block MUST be an object with: { "type": "...", "props": { ... } }.
 4. Countdown is a LIVE UI component — never include timer UI inside heroImagePrompt.
 5. heroImagePrompt must describe a background/scene only — NO text, NO UI elements.
+6. If research is provided, use the insights to craft more targeted copy.
+7. If image URLs are provided, use them in ImageGallery or as testimonial avatars.
 
 Return a JSON object with this exact structure:
 {
@@ -112,6 +226,17 @@ Block prop rules (MUST follow):
 - Form.props: webhookUrl optional (empty string if not used)
 - Popup.props: heading (required), trigger optional (delay|exit|scroll)
 - StickyBar.props: text (required), position optional (top|bottom)
+
+IMPORTANT: Create a page with MAXIMUM persuasion. Use multiple blocks strategically. Include:
+- Hero with powerful headline
+- SocialProof with testimonials
+- Benefits emphasizing transformation
+- Countdown for urgency
+- FAQ to overcome objections
+- Guarantee to reduce risk
+- Multiple CTASections throughout
+- StickyBar for constant visibility
+- Form for lead capture
 `;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -154,10 +279,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { prompt, reference } = validation.data;
   
   try {
-    // Step A: Generate page JSON with OpenAI
-    console.log('Step A: Generating page structure...');
+    // Step 1: Research the topic with Perplexity (parallel with image search)
+    console.log('Step 1: Researching topic and searching for images...');
+    const [research, imageUrls] = await Promise.all([
+      researchTopic(prompt),
+      searchImages(prompt)
+    ]);
     
-    let userPrompt = prompt;
+    // Step 2: Generate page JSON with OpenAI using research insights
+    console.log('Step 2: Generating persuasive page structure...');
+    
+    let userPrompt = `Create a high-converting landing page for: ${prompt}`;
+    
+    if (research) {
+      userPrompt += `\n\n${research}`;
+    }
+    
+    if (imageUrls.length > 0) {
+      userPrompt += `\n\nAVAILABLE STOCK IMAGES (use in ImageGallery or testimonials):\n${imageUrls.join('\n')}`;
+    }
+    
     if (reference) {
       userPrompt += `\n\nReference ${reference.type}: ${reference.value.substring(0, 5000)}`;
     }
@@ -175,7 +316,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           { role: 'user', content: userPrompt }
         ],
         response_format: { type: 'json_object' },
-        max_completion_tokens: 4000,
+        max_completion_tokens: 6000,
       }),
     });
     
@@ -202,11 +343,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       buttonStyle: t.buttonStyle === 'outline' ? 'outline' : 'solid',
     };
 
-    // Step B: Generate hero image
+    // Step 3: Generate hero image with AI
     if (heroImagePrompt) {
-      console.log('Step B: Generating hero image...');
+      console.log('Step 3: Generating AI hero image...');
       
-      const imagePrompt = `${heroImagePrompt}. High quality, modern, professional. No text, no UI elements, no countdown timers. Clean background suitable for overlaying text.`;
+      const imagePrompt = `${heroImagePrompt}. Ultra high quality, cinematic lighting, professional commercial photography. No text, no UI elements, no countdown timers. Clean background suitable for overlaying text. Dramatic, aspirational, emotionally evocative.`;
       
       const imageResponse = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
@@ -240,7 +381,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
     
-    console.log('Generation complete');
+    console.log('Generation complete with research and AI imagery');
     return res.status(200).json(pageJson);
     
   } catch (error) {
