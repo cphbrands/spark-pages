@@ -12,6 +12,8 @@ import {
   CTASectionBlock,
   FooterBlock,
   FormBlock,
+  PopupBlock,
+  StickyBarBlock,
 } from '@/components/blocks';
 
 interface BlockRendererProps {
@@ -38,6 +40,8 @@ export function BlockRenderer({ block, theme, pageId, pageSlug, onLeadSubmit }: 
     CTASection: <CTASectionBlock {...(props as any)} theme={theme} />,
     Footer: <FooterBlock {...(props as any)} theme={theme} />,
     Form: <FormBlock {...(props as any)} theme={theme} pageId={pageId} pageSlug={pageSlug} onSubmit={onLeadSubmit} />,
+    Popup: <PopupBlock {...(props as any)} theme={theme} />,
+    StickyBar: <StickyBarBlock {...(props as any)} theme={theme} />,
   };
 
   return <>{blockComponents[block.type]}</>;

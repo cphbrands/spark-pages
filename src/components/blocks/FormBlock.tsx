@@ -9,6 +9,7 @@ interface FormBlockProps {
   submitText?: string;
   showPhone?: boolean;
   successMessage?: string;
+  webhookUrl?: string;
   theme: Theme;
   pageId?: string;
   pageSlug?: string;
@@ -21,6 +22,7 @@ export function FormBlock({
   submitText = 'Submit', 
   showPhone = false,
   successMessage = 'Thank you! We\'ll be in touch soon.',
+  webhookUrl,
   theme,
   onSubmit,
 }: FormBlockProps) {
@@ -39,6 +41,7 @@ export function FormBlock({
     setError(null);
     
     try {
+      // Call onSubmit callback (stores lead locally)
       if (onSubmit) {
         await onSubmit({
           name: formData.name,
@@ -46,6 +49,28 @@ export function FormBlock({
           phone: showPhone ? formData.phone : undefined,
         });
       }
+      
+      // Send to webhook if configured (Zapier/Make integration)
+      if (webhookUrl) {
+        try {
+          await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            mode: 'no-cors', // Handle CORS for Zapier
+            body: JSON.stringify({
+              name: formData.name,
+              email: formData.email,
+              phone: showPhone ? formData.phone : undefined,
+              timestamp: new Date().toISOString(),
+              source: window.location.href,
+            }),
+          });
+        } catch (webhookError) {
+          console.error('Webhook error:', webhookError);
+          // Don't fail the form if webhook fails
+        }
+      }
+      
       setIsSuccess(true);
     } catch (err) {
       setError('Something went wrong. Please try again.');

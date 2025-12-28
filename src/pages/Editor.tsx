@@ -55,6 +55,8 @@ const blockTypeLabels: Record<BlockType, string> = {
   CTASection: 'CTA Section',
   Footer: 'Footer',
   Form: 'Lead Form',
+  Popup: 'Popup Modal',
+  StickyBar: 'Sticky Bar',
 };
 
 export default function Editor() {

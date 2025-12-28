@@ -35,6 +35,8 @@ const categoryIcons: Record<string, React.ElementType> = {
   education: BookOpen,
   local: Store,
   app: Smartphone,
+  coaching: BookOpen,
+  services: Check,
 };
 
 const categoryLabels: Record<string, string> = {
@@ -46,6 +48,8 @@ const categoryLabels: Record<string, string> = {
   education: 'Education',
   local: 'Local Business',
   app: 'App',
+  coaching: 'Coaching',
+  services: 'Services',
 };
 
 export function TemplatePicker({ open, onOpenChange }: TemplatePickerProps) {

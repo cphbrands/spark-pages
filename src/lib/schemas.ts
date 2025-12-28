@@ -119,6 +119,28 @@ export const FormPropsSchema = z.object({
   submitText: z.string().max(50).optional(),
   showPhone: z.boolean().optional(),
   successMessage: z.string().max(200).optional(),
+  webhookUrl: z.string().url().optional().or(z.literal('')),
+});
+
+export const PopupPropsSchema = z.object({
+  heading: z.string().max(100),
+  text: z.string().max(500).optional(),
+  ctaText: z.string().max(50).optional(),
+  ctaUrl: z.string().url().optional().or(z.literal('')),
+  trigger: z.enum(['delay', 'exit', 'scroll']).optional(),
+  delaySeconds: z.number().min(0).max(120).optional(),
+  scrollPercent: z.number().min(0).max(100).optional(),
+  showOnce: z.boolean().optional(),
+});
+
+export const StickyBarPropsSchema = z.object({
+  text: z.string().max(200),
+  ctaText: z.string().max(50).optional(),
+  ctaUrl: z.string().url().optional().or(z.literal('')),
+  position: z.enum(['top', 'bottom']).optional(),
+  dismissible: z.boolean().optional(),
+  countdown: z.boolean().optional(),
+  countdownEndAt: z.string().optional(),
 });
 
 // Block type enum
@@ -135,6 +157,8 @@ export const BlockTypeSchema = z.enum([
   'CTASection',
   'Footer',
   'Form',
+  'Popup',
+  'StickyBar',
 ]);
 
 export type BlockType = z.infer<typeof BlockTypeSchema>;
@@ -211,6 +235,8 @@ export const BlockPropsSchemas = {
   CTASection: CTASectionPropsSchema,
   Footer: FooterPropsSchema,
   Form: FormPropsSchema,
+  Popup: PopupPropsSchema,
+  StickyBar: StickyBarPropsSchema,
 } as const;
 
 // Helper to validate block props
@@ -294,5 +320,23 @@ export const defaultBlockProps: Record<BlockType, unknown> = {
     submitText: 'Submit',
     showPhone: false,
     successMessage: 'Thank you! We\'ll be in touch soon.',
+    webhookUrl: '',
+  },
+  Popup: {
+    heading: 'Wait! Don\'t Miss This',
+    text: 'Get 10% off your first order when you sign up today.',
+    ctaText: 'Claim Discount',
+    ctaUrl: '#form',
+    trigger: 'delay',
+    delaySeconds: 5,
+    showOnce: true,
+  },
+  StickyBar: {
+    text: '🔥 Limited time offer - 20% off everything!',
+    ctaText: 'Shop Now',
+    ctaUrl: '#pricing',
+    position: 'top',
+    dismissible: true,
+    countdown: false,
   },
 };
