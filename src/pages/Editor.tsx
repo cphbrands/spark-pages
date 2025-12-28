@@ -8,6 +8,7 @@ import {
   Save, 
   Globe, 
   GlobeLock,
+  ExternalLink,
   Plus,
   GripVertical,
   ChevronUp,
@@ -344,6 +345,16 @@ export default function Editor() {
           </div>
           
           <div className="h-6 w-px bg-builder-border mx-2" />
+          
+          {/* Preview Live Button - always visible */}
+          <Button 
+            variant="ghost"
+            onClick={() => navigate(`/preview/${page.id}`)}
+            className="text-builder-text-muted hover:text-builder-text"
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Preview Live
+          </Button>
           
           {page.status === 'published' ? (
             <>

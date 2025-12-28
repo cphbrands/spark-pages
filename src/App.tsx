@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import Editor from "./pages/Editor";
 import PublicPage from "./pages/PublicPage";
+import Preview from "./pages/Preview";
 import Leads from "./pages/Leads";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/builder" element={<Dashboard />} />
             <Route path="/builder/pages/:id" element={<Editor />} />
             <Route path="/builder/leads" element={<Leads />} />
+            <Route path="/preview/:id" element={<Preview />} />
             <Route path="/p/:slug" element={<PublicPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
