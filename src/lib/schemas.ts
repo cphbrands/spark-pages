@@ -61,6 +61,7 @@ export const BenefitsPropsSchema = z.object({
 
 export const SocialProofPropsSchema = z.object({
   heading: z.string().max(100).optional(),
+  subheading: z.string().max(200).optional(),
   logos: z.array(z.object({
     name: z.string().max(50),
     imageUrl: z.string().url().optional(),
@@ -70,7 +71,13 @@ export const SocialProofPropsSchema = z.object({
     author: z.string().max(100),
     role: z.string().max(100).optional(),
     avatarUrl: z.string().url().optional(),
+    rating: z.number().min(1).max(5).optional(),
+    result: z.string().max(100).optional(),
   })).max(5).optional(),
+  stats: z.array(z.object({
+    value: z.string().max(20),
+    label: z.string().max(50),
+  })).max(6).optional(),
 });
 
 export const PricingPropsSchema = z.object({

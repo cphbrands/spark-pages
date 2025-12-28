@@ -138,7 +138,7 @@ Be specific, not generic. Real insights only.`
   }
 }
 
-// Search for relevant images
+// Search for relevant product/topic images
 async function searchImages(topic: string): Promise<string[]> {
   const perplexityKey = process.env.PERPLEXITY_API_KEY;
   if (!perplexityKey) return [];
@@ -155,9 +155,16 @@ async function searchImages(topic: string): Promise<string[]> {
         messages: [
           { 
             role: 'system', 
-            content: 'Find 3-5 high-quality, professional stock image URLs related to the topic. Return ONLY the direct image URLs (ending in .jpg, .png, .webp), one per line. No explanations.' 
+            content: `Find 5-8 high-quality product/stock images for landing pages. Focus on:
+1. Product shots (the actual item from different angles)
+2. Lifestyle shots (product in use)
+3. Close-up details
+
+Return ONLY direct image URLs (ending in .jpg, .png, .webp), one per line. 
+Prefer images from unsplash.com, pexels.com, or major e-commerce sites.
+NO explanations, just URLs.` 
           },
-          { role: 'user', content: `Find professional images for: ${topic}` }
+          { role: 'user', content: `Find professional product and lifestyle images for: ${topic}` }
         ],
       }),
     });
@@ -229,25 +236,32 @@ VISUAL DESIGN REQUIREMENTS:
 
 BLOCK STRATEGY (create a journey):
 1. Hero: Pattern interrupt headline + vivid subheadline + strong CTA
-2. SocialProof: Immediate credibility (logos OR testimonial, not both)
-3. Benefits: 4-6 transformation-focused bullets with sensory language
-4. Features: 3 key differentiators with icons
-5. Countdown: Create urgency with specific deadline
-6. SocialProof: Deep testimonials with stories and results
-7. Pricing: Anchored price with value stack
-8. Guarantee: Bold, specific guarantee that eliminates risk
-9. FAQ: Overcome top 3-5 objections
-10. CTASection: Final push with urgency
-11. Form: Simple, low-friction capture
-12. StickyBar: Constant visibility with offer reminder
+2. ImageGallery: CRITICAL - Show the PRODUCT prominently! Use provided stock images.
+3. SocialProof: Stats (numbers like "10,000+ Happy Customers") + logo strip
+4. Benefits: 4-6 transformation-focused bullets with sensory language
+5. Features: 3 key differentiators with icons
+6. Countdown: Create urgency with specific deadline
+7. SocialProof: Deep testimonials with SPECIFIC RESULTS (e.g., "Reduced drying time by 60%")
+8. Pricing: Anchored price with value stack
+9. Guarantee: Bold, specific guarantee that eliminates risk
+10. FAQ: Overcome top 3-5 objections
+11. CTASection: Final push with urgency
+12. Form: Simple, low-friction capture
+13. StickyBar: Constant visibility with offer reminder
+
+CRITICAL - PRODUCT IMAGES:
+For physical products (hairdryer, shoes, electronics, etc.):
+- ALWAYS include an ImageGallery block near the top showing the actual product
+- Use the stock image URLs provided to show the product from multiple angles
+- heroImagePrompt should be a LIFESTYLE shot showing the product in use
 
 CRITICAL JSON RULES:
 1. Output MUST be valid JSON only
 2. Use ONLY these block types: Hero, Features, Benefits, SocialProof, Pricing, Countdown, FAQ, ImageGallery, Guarantee, CTASection, Footer, Form, Popup, StickyBar
 3. Every block: { "type": "...", "props": { ... } }
-4. heroImagePrompt: Background/scene ONLY — NO text, NO UI, NO countdown timers
+4. heroImagePrompt: For products = lifestyle shot with product in use. For services = aspirational scene.
 5. Use research insights to craft hyper-targeted copy
-6. Use provided image URLs in ImageGallery or testimonial avatars
+6. ALWAYS use provided image URLs in ImageGallery blocks
 
 JSON STRUCTURE:
 {
@@ -263,18 +277,23 @@ JSON STRUCTURE:
     "buttonStyle": "solid" | "outline"
   },
   "blocks": [...],
-  "heroImagePrompt": "Cinematic scene description. Dramatic lighting. NO text/UI."
+  "heroImagePrompt": "For products: Lifestyle scene with product in use. For services: Aspirational scene. NO text/UI."
 }
 
 PROP RULES:
 - Hero.props: headline (required, MAX IMPACT), subheadline, ctaText, ctaUrl, imageUrl, alignment
 - Features.props: heading, items (1-6) [{ title, description, icon }]
 - Benefits.props: heading, items (1-10) [string] — each benefit = specific transformation
-- SocialProof.props: heading, testimonials [{ quote, author, role, avatarUrl }], logos [{ name, imageUrl }]
+- SocialProof.props: 
+  * heading, subheading (optional)
+  * stats: [{ value: "10,000+", label: "Happy Customers" }] — use SPECIFIC numbers
+  * logos: [{ name, imageUrl }]
+  * testimonials: [{ quote, author, role, avatarUrl, rating (1-5), result ("Saved 2 hours daily") }]
+  * ALWAYS include rating (5) and result with SPECIFIC metrics
 - Pricing.props: price, compareAtPrice, discountBadge, features [], ctaText, ctaUrl
 - Countdown.props: endAt (ISO), label, scarcityText — ALWAYS 3-7 days from now
 - FAQ.props: items [{ question, answer }] — answer objections, not just info
-- ImageGallery.props: images [{ url, alt, caption }]
+- ImageGallery.props: images [{ url, alt, caption }] — USE PROVIDED URLS, show product!
 - Guarantee.props: text, heading, icon
 - CTASection.props: heading, subheading, ctaText, ctaUrl, variant (default|gradient|dark)
 - Footer.props: companyName, links, copyright
@@ -282,7 +301,7 @@ PROP RULES:
 - Popup.props: heading, text, ctaText, trigger (delay|exit|scroll)
 - StickyBar.props: text, ctaText, ctaUrl, position (top|bottom)
 
-REMEMBER: Each page should feel like a premium brand, not a template. Make it MEMORABLE.`;
+REMEMBER: For PRODUCT pages, the product MUST be visible! Use ImageGallery. Make testimonials have SPECIFIC RESULTS.`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
