@@ -93,7 +93,7 @@ Return a JSON object with this exact structure:
   "heroImagePrompt": "A description for DALL-E to generate a hero background image. Abstract, atmospheric, no text or UI."
 }
 
-Available block types: Hero, Features, Benefits, Pricing, Countdown, FAQ, CTASection, Footer, Form
+Available block types: Hero, Features, Benefits, Pricing, Countdown, FAQ, CTASection, Footer, Form, SocialProof, Guarantee, ImageGallery, Popup, StickyBar
 
 For Countdown blocks, use props like: { "targetDate": "2025-01-15T00:00:00Z", "headline": "..." }
 The countdown will render as a live timer in the UI.`;

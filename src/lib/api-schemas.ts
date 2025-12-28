@@ -12,6 +12,11 @@ export const AllowedBlockTypes = [
   'CTASection',
   'Footer',
   'Form',
+  'SocialProof',
+  'Guarantee',
+  'ImageGallery',
+  'Popup',
+  'StickyBar',
 ] as const;
 
 export const AllowedBlockTypeSchema = z.enum(AllowedBlockTypes);
