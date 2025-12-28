@@ -359,6 +359,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
   } catch (error) {
     console.error('Generation error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ 
+      error: 'Internal server error', 
+      code: 'UNHANDLED',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 }
