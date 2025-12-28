@@ -175,7 +175,7 @@ PSYCHOLOGICAL TRICKS:
 - One-call close
 
 Tone: Urgent, exclusive, transformational.`
-    }
+  }
   ];
 
   const handlePresetClick = (presetPrompt: string, niche: string) => {
@@ -719,16 +719,23 @@ Tone: Urgent, exclusive, transformational.`
           
           {/* Preset prompts + psychology boosters */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">🎯 Conversion-Optimized Templates</h3>
+            <h3 className="text-lg font-semibold mb-3 text-builder-text">🎯 Conversion-Optimized Templates</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
               {CONVERSION_PRESETS.map((preset, idx) => (
                 <button
                   key={idx}
-                  onClick={() => setCurrentPrompt(preset.prompt)}
-                  className="p-4 border rounded-lg text-left hover:bg-gray-50 transition-colors"
+                  onClick={() => {
+                    setCurrentPrompt(preset.prompt);
+                    toast({
+                      title: 'Template loaded',
+                      description: preset.name,
+                    });
+                  }}
+                  className="p-4 border rounded-lg text-left bg-builder-bg border-builder-border hover:bg-builder-surface-hover transition-colors text-builder-text"
                 >
-                  <div className="font-medium mb-1">{preset.name}</div>
-                  <div className="text-sm text-gray-600">{preset.description}</div>
+                  <div className="font-medium mb-1 text-builder-text">{preset.name}</div>
+                  <div className="text-sm text-builder-text-muted">{preset.description}</div>
+                  <div className="text-xs text-builder-text-muted mt-2">Click to load prompt into the editor</div>
                 </button>
               ))}
             </div>
