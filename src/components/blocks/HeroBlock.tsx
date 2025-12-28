@@ -28,20 +28,37 @@ export function HeroBlock({
 
   return (
     <section 
-      className="relative min-h-[70vh] flex items-center justify-center px-4 py-20 overflow-hidden"
+      className="relative min-h-[80vh] flex items-center justify-center px-4 py-20 overflow-hidden"
       style={{
         backgroundColor: theme.mode === 'dark' ? '#0f172a' : '#ffffff',
         color: theme.mode === 'dark' ? '#f8fafc' : '#0f172a',
       }}
     >
       {imageUrl && (
-        <div 
-          className="absolute inset-0 bg-cover bg-center opacity-20"
-          style={{ backgroundImage: `url(${imageUrl})` }}
-        />
+        <>
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${imageUrl})` }}
+          />
+          <div 
+            className="absolute inset-0"
+            style={{
+              background: theme.mode === 'dark' 
+                ? 'linear-gradient(to bottom, rgba(15,23,42,0.7) 0%, rgba(15,23,42,0.85) 50%, rgba(15,23,42,0.95) 100%)'
+                : 'linear-gradient(to bottom, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0.95) 100%)'
+            }}
+          />
+        </>
       )}
       
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/10" />
+      {!imageUrl && (
+        <div 
+          className="absolute inset-0 opacity-30"
+          style={{
+            background: `radial-gradient(ellipse at top, ${theme.primaryColor}20 0%, transparent 70%)`
+          }}
+        />
+      )}
       
       <div className={cn(
         "relative z-10 max-w-4xl mx-auto flex flex-col gap-6",
