@@ -169,13 +169,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-5-mini-2025-08-07',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt }
         ],
         response_format: { type: 'json_object' },
-        max_tokens: 4000,
+        max_completion_tokens: 4000,
       }),
     });
     
@@ -215,17 +215,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'dall-e-3',
+          model: 'gpt-image-1',
           prompt: imagePrompt,
           n: 1,
-          size: '1792x1024',
-          quality: 'standard',
+          size: '1536x1024',
+          quality: 'high',
         }),
       });
       
       if (imageResponse.ok) {
         const imageData = await imageResponse.json();
-        const imageUrl = imageData.data?.[0]?.url;
+        // gpt-image-1 returns base64, convert to data URL
+        const b64 = imageData.data?.[0]?.b64_json;
+        const imageUrl = b64 ? `data:image/png;base64,${b64}` : imageData.data?.[0]?.url;
         
         if (imageUrl && pageJson.blocks) {
           const heroBlock = pageJson.blocks.find((b: { type: string }) => b.type === 'Hero');
