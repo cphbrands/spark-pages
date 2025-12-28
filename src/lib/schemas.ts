@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+// Accepts full URLs, in-page anchors ("#section"), and relative paths ("/path")
+// Used for CTA links throughout generated blocks.
+const ActionUrlSchema = z.union([
+  z.string().url(),
+  z.string().regex(/^#.*$/, 'Anchor link must start with #'),
+  z.string().regex(/^\/.*$/, 'Relative link must start with /'),
+  z.literal(''),
+]);
+
 // Theme Schema
 export const ThemeSchema = z.object({
   mode: z.enum(['light', 'dark']),
@@ -24,7 +33,7 @@ export const HeroPropsSchema = z.object({
   headline: z.string().min(1).max(200),
   subheadline: z.string().max(500).optional(),
   ctaText: z.string().max(50).optional(),
-  ctaUrl: z.string().url().optional().or(z.literal('')),
+  ctaUrl: ActionUrlSchema.optional(),
   imageUrl: z.string().url().optional().or(z.literal('')),
   alignment: z.enum(['left', 'center', 'right']).optional(),
 });
@@ -64,7 +73,7 @@ export const PricingPropsSchema = z.object({
   discountBadge: z.string().max(50).optional(),
   features: z.array(z.string().max(200)).max(15),
   ctaText: z.string().max(50).optional(),
-  ctaUrl: z.string().url().optional().or(z.literal('')),
+  ctaUrl: ActionUrlSchema.optional(),
 });
 
 export const CountdownPropsSchema = z.object({
@@ -100,7 +109,7 @@ export const CTASectionPropsSchema = z.object({
   heading: z.string().min(1).max(200),
   subheading: z.string().max(300).optional(),
   ctaText: z.string().max(50),
-  ctaUrl: z.string().url().optional().or(z.literal('')),
+  ctaUrl: ActionUrlSchema.optional(),
   variant: z.enum(['default', 'gradient', 'dark']).optional(),
 });
 
@@ -126,7 +135,7 @@ export const PopupPropsSchema = z.object({
   heading: z.string().max(100),
   text: z.string().max(500).optional(),
   ctaText: z.string().max(50).optional(),
-  ctaUrl: z.string().url().optional().or(z.literal('')),
+  ctaUrl: ActionUrlSchema.optional(),
   trigger: z.enum(['delay', 'exit', 'scroll']).optional(),
   delaySeconds: z.number().min(0).max(120).optional(),
   scrollPercent: z.number().min(0).max(100).optional(),
@@ -136,7 +145,7 @@ export const PopupPropsSchema = z.object({
 export const StickyBarPropsSchema = z.object({
   text: z.string().max(200),
   ctaText: z.string().max(50).optional(),
-  ctaUrl: z.string().url().optional().or(z.literal('')),
+  ctaUrl: ActionUrlSchema.optional(),
   position: z.enum(['top', 'bottom']).optional(),
   dismissible: z.boolean().optional(),
   countdown: z.boolean().optional(),

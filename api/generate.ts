@@ -67,12 +67,14 @@ interface RequestData {
   reference?: { type: 'url' | 'html'; value: string };
 }
 
-const SYSTEM_PROMPT = `You are a landing page generator. Given a user prompt, generate a complete landing page JSON structure.
+const SYSTEM_PROMPT = `You are a landing page generator. Given a user prompt, generate a complete landing page JSON structure that STRICTLY matches the schema below.
 
 CRITICAL RULES:
-1. Countdown is a LIVE UI component - never include countdown/timer elements in heroImagePrompt
-2. heroImagePrompt should describe a background image only - NO text, NO UI elements, NO countdown timers
-3. The image will be used as a hero background, so describe scenes, atmospheres, abstract visuals
+1. Output MUST be valid JSON.
+2. Use ONLY the block types listed under "Available block types".
+3. Every block MUST be an object with: { "type": "...", "props": { ... } }.
+4. Countdown is a LIVE UI component — never include timer UI inside heroImagePrompt.
+5. heroImagePrompt must describe a background/scene only — NO text, NO UI elements.
 
 Return a JSON object with this exact structure:
 {
@@ -82,21 +84,35 @@ Return a JSON object with this exact structure:
     "description": "Optional description (max 300 chars)"
   },
   "theme": {
-    "primaryColor": "#hexcolor",
-    "fontFamily": "font name"
+    "mode": "light" | "dark",
+    "primaryColor": "#RRGGBB",
+    "font": "inter" | "outfit" | "system",
+    "buttonStyle": "solid" | "outline"
   },
   "blocks": [
-    { "type": "Hero", "props": { "headline": "...", "subheadline": "...", "ctaText": "...", "ctaLink": "#" } },
-    { "type": "Features", "props": { "features": [...] } },
-    // ... more blocks
+    { "type": "Hero", "props": { "headline": "...", "subheadline": "...", "ctaText": "...", "ctaUrl": "#form", "imageUrl": "", "alignment": "center" } }
   ],
-  "heroImagePrompt": "A description for DALL-E to generate a hero background image. Abstract, atmospheric, no text or UI."
+  "heroImagePrompt": "A description for image generation. Background only. No text/UI."
 }
 
-Available block types: Hero, Features, Benefits, Pricing, Countdown, FAQ, CTASection, Footer, Form, SocialProof, Guarantee, ImageGallery, Popup, StickyBar
+Available block types: Hero, Features, Benefits, SocialProof, Pricing, Countdown, FAQ, ImageGallery, Guarantee, CTASection, Footer, Form, Popup, StickyBar
 
-For Countdown blocks, use props like: { "targetDate": "2025-01-15T00:00:00Z", "headline": "..." }
-The countdown will render as a live timer in the UI.`;
+Block prop rules (MUST follow):
+- Hero.props: headline (required), subheadline (optional), ctaText (optional), ctaUrl (optional), imageUrl (optional), alignment (optional: left|center|right)
+- Features.props: heading (optional), items (1-6) [{ title, description, icon (optional) }]
+- Benefits.props: heading (optional), items (1-10) [string]
+- SocialProof.props: heading (optional), testimonials (optional) [{ quote, author, role (optional), avatarUrl (optional) }], logos (optional) [{ name, imageUrl (optional) }]
+- Pricing.props: price (required string), features (array), ctaText optional, ctaUrl optional
+- Countdown.props: endAt (ISO string), label optional, scarcityText optional
+- FAQ.props: items (array) [{ question, answer }]
+- ImageGallery.props: images [{ url, alt (optional), caption (optional) }] (use https URLs)
+- Guarantee.props: text (required), heading/icon optional
+- CTASection.props: heading (required), ctaText (required), ctaUrl optional, variant optional (default|gradient|dark)
+- Footer.props: links must use https URLs
+- Form.props: webhookUrl optional (empty string if not used)
+- Popup.props: heading (required), trigger optional (delay|exit|scroll)
+- StickyBar.props: text (required), position optional (top|bottom)
+`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
@@ -173,7 +189,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const generatedContent = JSON.parse(openaiData.choices[0].message.content);
     
     const { heroImagePrompt, ...pageJson } = generatedContent;
-    
+
+    // Normalize theme to match frontend schema (prevents "Invalid response from API")
+    const t = (pageJson as any).theme ?? {};
+    const fontFamily = typeof t.fontFamily === 'string' ? t.fontFamily.toLowerCase() : '';
+    (pageJson as any).theme = {
+      mode: t.mode === 'dark' ? 'dark' : 'light',
+      primaryColor: typeof t.primaryColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(t.primaryColor) ? t.primaryColor : '#7c3aed',
+      font: t.font === 'inter' || t.font === 'outfit' || t.font === 'system'
+        ? t.font
+        : (fontFamily.includes('outfit') ? 'outfit' : (fontFamily.includes('inter') ? 'inter' : 'system')),
+      buttonStyle: t.buttonStyle === 'outline' ? 'outline' : 'solid',
+    };
+
     // Step B: Generate hero image
     if (heroImagePrompt) {
       console.log('Step B: Generating hero image...');
