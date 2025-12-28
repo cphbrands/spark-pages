@@ -1,5 +1,6 @@
 import { GenerateRequestSchema, GenerateResponseSchema, GenerateResponse, GenerateError, ReferenceInput } from './api-schemas';
 import { BlockPropsSchemas, BlockType } from './schemas';
+import { sanitizeGeneratedBlocks } from './block-sanitizer';
 import { z } from 'zod';
 
 const API_ENDPOINT = '/api/generate';
@@ -104,8 +105,11 @@ export async function generateLandingPage(
       };
     }
 
-    // Validate each block's props
-    const propsError = validateBlockProps(responseValidation.data.blocks);
+    // Sanitize blocks (merge in defaults when the AI omits required fields)
+    const sanitizedBlocks = sanitizeGeneratedBlocks(responseValidation.data.blocks);
+
+    // Validate each block's props (post-sanitization)
+    const propsError = validateBlockProps(sanitizedBlocks);
     if (propsError) {
       return {
         success: false,
@@ -118,7 +122,10 @@ export async function generateLandingPage(
 
     return {
       success: true,
-      data: responseValidation.data,
+      data: {
+        ...responseValidation.data,
+        blocks: sanitizedBlocks,
+      },
     };
   } catch (error) {
     return {
