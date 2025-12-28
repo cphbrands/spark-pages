@@ -55,17 +55,151 @@ function validateRequest(body: unknown): { success: true; data: RefineRequest } 
   };
 }
 
-const SYSTEM_PROMPT = `You are a landing page editor. The user has an existing landing page and wants to refine it based on their instructions.
+// Detect if the prompt needs research or images
+function analyzePrompt(prompt: string): { needsResearch: boolean; needsImage: boolean; imagePrompt: string | null } {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  const researchKeywords = ['research', 'find', 'search', 'look up', 'what', 'competitors', 'market', 'statistics', 'data', 'examples'];
+  const imageKeywords = ['image', 'picture', 'photo', 'visual', 'background', 'hero image', 'generate image', 'create image', 'new image', 'billede'];
+  
+  const needsResearch = researchKeywords.some(kw => lowerPrompt.includes(kw));
+  const needsImage = imageKeywords.some(kw => lowerPrompt.includes(kw));
+  
+  let imagePrompt: string | null = null;
+  if (needsImage) {
+    // Extract what kind of image they want
+    const match = prompt.match(/(?:image|picture|photo|billede)(?:\s+(?:of|about|for|med|af))?\s+(.+)/i);
+    imagePrompt = match ? match[1] : prompt;
+  }
+  
+  return { needsResearch, needsImage, imagePrompt };
+}
+
+// Research using Perplexity
+async function researchTopic(prompt: string, context: string): Promise<string> {
+  const perplexityKey = process.env.PERPLEXITY_API_KEY;
+  if (!perplexityKey) return '';
+
+  try {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${perplexityKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { 
+            role: 'system', 
+            content: `You are a marketing researcher. Based on the user's question and context about their landing page, provide relevant, actionable insights. Be concise and specific.` 
+          },
+          { role: 'user', content: `Landing page context: ${context}\n\nResearch request: ${prompt}` }
+        ],
+        search_recency_filter: 'month',
+      }),
+    });
+
+    if (!response.ok) return '';
+
+    const data = await response.json();
+    const research = data.choices?.[0]?.message?.content || '';
+    const citations = data.citations || [];
+    
+    return `RESEARCH INSIGHTS:\n${research}\n\nSources: ${citations.slice(0, 3).join(', ')}`;
+  } catch {
+    return '';
+  }
+}
+
+// Generate image with OpenAI
+async function generateImage(prompt: string): Promise<string | null> {
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (!openaiKey) return null;
+
+  try {
+    const imagePrompt = `${prompt}. Ultra high quality, professional commercial photography, cinematic lighting. No text, no UI elements. Clean, dramatic, aspirational.`;
+    
+    const response = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-image-1',
+        prompt: imagePrompt,
+        n: 1,
+        size: '1536x1024',
+        quality: 'high',
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const b64 = data.data?.[0]?.b64_json;
+    return b64 ? `data:image/png;base64,${b64}` : data.data?.[0]?.url || null;
+  } catch {
+    return null;
+  }
+}
+
+// Search for stock images
+async function searchImages(topic: string): Promise<string[]> {
+  const perplexityKey = process.env.PERPLEXITY_API_KEY;
+  if (!perplexityKey) return [];
+
+  try {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${perplexityKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'Find 3 high-quality stock image URLs related to the topic. Return ONLY direct image URLs (ending in .jpg, .png, .webp), one per line. No explanations.' 
+          },
+          { role: 'user', content: `Find professional images for: ${topic}` }
+        ],
+      }),
+    });
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    
+    const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|webp|gif)[^\s]*/gi;
+    return (content.match(urlRegex) || []).slice(0, 3);
+  } catch {
+    return [];
+  }
+}
+
+const SYSTEM_PROMPT = `You are an ELITE landing page editor and conversion optimizer. The user wants to refine their existing page.
+
+PERSUASION PRINCIPLES TO APPLY WHEN RELEVANT:
+- URGENCY & SCARCITY: Limited time, limited spots
+- SOCIAL PROOF: Testimonials, numbers, logos
+- AUTHORITY: Expert endorsements
+- LOSS AVERSION: What they'll miss
+- SPECIFICITY: Specific numbers ("347% increase")
+- EMOTIONAL TRIGGERS: Fear, aspiration, belonging
 
 CRITICAL RULES:
 1. Output MUST be valid JSON with the same structure as the input.
 2. Only modify what the user asks for. Keep everything else EXACTLY the same.
 3. Use ONLY the block types: Hero, Features, Benefits, SocialProof, Pricing, Countdown, FAQ, ImageGallery, Guarantee, CTASection, Footer, Form, Popup, StickyBar
 4. Every block MUST have: { "type": "...", "props": { ... } }
-5. If the user asks to add a block, add it at a logical position.
-6. If the user asks to remove a block, remove it.
-7. If the user asks to change text, colors, or theme - update accordingly.
-8. DO NOT regenerate hero images - keep existing imageUrl values unless user explicitly asks to remove them.
+5. If research insights are provided, USE them to improve copy.
+6. If new images are provided, USE them appropriately.
+7. If user asks to "generate" or "create" an image, expect newHeroImage in the context.
+8. Make copy MORE persuasive, specific, and emotionally compelling.
 
 Return the complete updated page JSON with this structure:
 {
@@ -74,7 +208,7 @@ Return the complete updated page JSON with this structure:
   "blocks": [ ... ]
 }
 
-Block prop rules (MUST follow):
+Block prop rules:
 - Hero.props: headline (required), subheadline (optional), ctaText (optional), ctaUrl (optional), imageUrl (optional), alignment (optional: left|center|right)
 - Features.props: heading (optional), items (1-6) [{ title, description, icon (optional) }]
 - Benefits.props: heading (optional), items (1-10) [string]
@@ -133,12 +267,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     console.log('Refining page with prompt:', prompt.substring(0, 100));
     
-    const userMessage = `Current page JSON:
+    // Analyze what the user needs
+    const { needsResearch, needsImage, imagePrompt } = analyzePrompt(prompt);
+    const pageContext = `${currentPage.meta.title}: ${currentPage.meta.description || ''}`;
+    
+    // Parallel fetch for research, images, and AI image generation
+    const [research, stockImages, generatedImage] = await Promise.all([
+      needsResearch ? researchTopic(prompt, pageContext) : Promise.resolve(''),
+      needsResearch ? searchImages(pageContext) : Promise.resolve([]),
+      needsImage && imagePrompt ? generateImage(imagePrompt) : Promise.resolve(null),
+    ]);
+    
+    let userMessage = `Current page JSON:
 ${JSON.stringify(currentPage, null, 2)}
 
-User's refinement request: ${prompt}
+User's refinement request: ${prompt}`;
 
-Return the complete updated page JSON.`;
+    if (research) {
+      userMessage += `\n\n${research}`;
+    }
+    
+    if (stockImages.length > 0) {
+      userMessage += `\n\nAVAILABLE STOCK IMAGES:\n${stockImages.join('\n')}`;
+    }
+    
+    if (generatedImage) {
+      userMessage += `\n\nNEW AI-GENERATED IMAGE (use as hero image or where appropriate):\n${generatedImage}`;
+    }
+
+    userMessage += `\n\nReturn the complete updated page JSON.`;
     
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -153,7 +310,7 @@ Return the complete updated page JSON.`;
           { role: 'user', content: userMessage }
         ],
         response_format: { type: 'json_object' },
-        max_completion_tokens: 4000,
+        max_completion_tokens: 6000,
       }),
     });
     
@@ -178,7 +335,7 @@ Return the complete updated page JSON.`;
       buttonStyle: t.buttonStyle === 'outline' ? 'outline' : 'solid',
     };
     
-    console.log('Refinement complete');
+    console.log('Refinement complete', { hadResearch: !!research, hadImage: !!generatedImage });
     return res.status(200).json(refinedPage);
     
   } catch (error) {
