@@ -178,6 +178,15 @@ Tone: Urgent, exclusive, transformational.`
     }
   ];
 
+  const handlePresetClick = (presetPrompt: string, niche: string) => {
+    setCurrentPrompt(presetPrompt);
+    setSelectedNiche(niche);
+    toast({
+      title: 'Preset applied',
+      description: `Loaded prompt and niche: ${niche}`,
+    });
+  };
+
   const handleRefine = async (prompt: string) => {
     if (!page) return;
     
@@ -647,10 +656,10 @@ Tone: Urgent, exclusive, transformational.`
           </div>
 
           {/* Niche selection and dark pattern presets */}
-          <div className="mb-6 space-y-4 mt-6">
+          <div className="mb-6 space-y-4 mt-6 bg-builder-surface border border-builder-border rounded-xl p-4 shadow-sm">
             {/* Niche Selection */}
             <div>
-              <label className="block text-sm font-medium mb-2">🎯 Select Niche Psychology</label>
+              <label className="block text-sm font-semibold mb-2 text-builder-text">🎯 Select Niche Psychology</label>
               <div className="flex flex-wrap gap-2">
                 {NICHE_OPTIONS.map((niche) => (
                   <button
@@ -659,37 +668,35 @@ Tone: Urgent, exclusive, transformational.`
                     onClick={() => setSelectedNiche(niche.id)}
                     className={`inline-flex items-center px-3 py-2 rounded-lg border transition-colors ${
                       selectedNiche === niche.id
-                        ? 'bg-purple-100 border-purple-300 text-purple-800 shadow-sm'
-                        : 'bg-white border-gray-200 hover:bg-gray-50'
+                        ? 'bg-purple-100 border-purple-300 text-purple-900 shadow-sm'
+                        : 'bg-builder-bg border-builder-border text-builder-text hover:bg-builder-surface-hover'
                     }`}
+                    aria-pressed={selectedNiche === niche.id}
                   >
                     <span className="mr-2">{niche.icon}</span>
                     <span>{niche.label}</span>
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-builder-text-muted mt-2">
                 Niche selection applies specialized psychological triggers
               </p>
             </div>
 
             {/* Dark Pattern Presets */}
             <div>
-              <label className="block text-sm font-medium mb-2">🔥 One-Click Dark Pattern Presets</label>
+              <label className="block text-sm font-semibold mb-2 text-builder-text">🔥 One-Click Dark Pattern Presets</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {DARK_PATTERN_PRESETS.map((preset) => (
                   <button
                     key={preset.id}
                     type="button"
-                    onClick={() => {
-                      setCurrentPrompt(preset.prompt);
-                      setSelectedNiche(preset.niche);
-                    }}
-                    className="p-4 border rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors text-left"
+                    onClick={() => handlePresetClick(preset.prompt, preset.niche)}
+                    className="p-4 border rounded-lg bg-builder-bg border-builder-border hover:border-red-300 hover:bg-builder-surface-hover transition-colors text-left text-builder-text"
                   >
                     <div className="text-2xl mb-2">{preset.icon}</div>
-                    <div className="font-medium text-gray-900">{preset.name}</div>
-                    <div className="text-sm text-gray-600 mt-1">Click to load preset</div>
+                    <div className="font-medium text-builder-text">{preset.name}</div>
+                    <div className="text-sm text-builder-text-muted mt-1">Click to load preset</div>
                   </button>
                 ))}
               </div>
@@ -704,7 +711,7 @@ Tone: Urgent, exclusive, transformational.`
                 onChange={(e) => setEnhanceWithDarkPatterns(e.target.checked)}
                 className="h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
               />
-              <label htmlFor="enhance-toggle" className="ml-2 text-sm text-gray-700">
+              <label htmlFor="enhance-toggle" className="ml-2 text-sm text-builder-text">
                 🧠 Auto-inject dark patterns (countdowns, fake notifications, price deception)
               </label>
             </div>
@@ -730,7 +737,7 @@ Tone: Urgent, exclusive, transformational.`
               onBoost={setCurrentPrompt}
             />
 
-            <div className="mt-4 flex flex-wrap gap-3">
+            <div className="mt-4 flex flex-wrap gap-3 items-center">
               <Button 
                 onClick={handleGenerate}
                 disabled={isGenerating}
@@ -738,7 +745,7 @@ Tone: Urgent, exclusive, transformational.`
               >
                 {isGenerating ? 'Generating…' : 'Generate with these settings'}
               </Button>
-              <p className="text-xs text-gray-500 self-center">
+              <p className="text-xs text-builder-text-muted">
                 Uses selected niche and dark-pattern enhancer
               </p>
             </div>
