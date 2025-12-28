@@ -35,7 +35,7 @@ async function callOpenAI(apiKey: string, options: LLMOptions): Promise<string |
 
       const raw = await response.text();
       if (!response.ok) {
-        console.error(`OpenAI (${model}) error:`, raw);
+        console.error(`OpenAI (${model}) error (${response.status}):`, raw);
         continue;
       }
 

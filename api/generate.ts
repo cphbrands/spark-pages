@@ -10,8 +10,8 @@ type VercelResponse = {
 // Minimal process env typing (no Node types required)
 declare const process: { env: Record<string, string | undefined> };
 
-import { runLLM } from './llm';
-import { SYSTEM_PROMPT } from './prompt';
+import { runLLM } from './llm.js';
+import { SYSTEM_PROMPT } from './prompt.js';
 
 // Rate limiting (in-memory - use Redis for production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -287,7 +287,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     } catch (err) {
       console.error('LLM generation failed:', err);
-      return res.status(502).json({ error: 'Generation failed. Please retry shortly.', code: 'LLM_UPSTREAM' });
+      return res.status(502).json({ error: 'Generation failed. Please retry shortly.', code: 'LLM_UPSTREAM', message: err instanceof Error ? err.message : 'Unknown LLM error' });
     }
 
     if (!llmContent || typeof llmContent !== 'string') {
