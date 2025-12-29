@@ -44,6 +44,7 @@ import { PsychologyBooster } from '@/components/PsychologyBooster';
 import { BlockType, defaultBlockProps, BlockPropsSchemas } from '@/lib/schemas';
 import { AllowedBlockTypes } from '@/lib/api-schemas';
 import { sanitizeGeneratedBlocks } from '@/lib/block-sanitizer';
+import { savePage, loadPage } from '@/lib/page-service';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { refineLandingPage } from '@/lib/refine-service';
@@ -96,6 +97,8 @@ export default function Editor() {
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [selectedNiche, setSelectedNiche] = useState<string>('weight-loss');
   const [enhanceWithDarkPatterns, setEnhanceWithDarkPatterns] = useState<boolean>(true);
+  const [isSavingCloud, setIsSavingCloud] = useState(false);
+  const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   
   const handleDownloadJson = () => {
     if (!page) return;
@@ -107,6 +110,87 @@ export default function Editor() {
     a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleUploadJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!page) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      if (!json.meta || !json.theme || !Array.isArray(json.blocks)) {
+        throw new Error('Invalid page JSON structure');
+      }
+
+      const allowedTypes = new Set<string>(AllowedBlockTypes as readonly string[]);
+      const filteredBlocks = json.blocks.filter((b: any) => b && allowedTypes.has(b.type));
+      const sanitized = sanitizeGeneratedBlocks(filteredBlocks as any);
+      const updatedBlocks = sanitized.map((b: any) => ({
+        id: uuidv4(),
+        type: b.type as BlockType,
+        props: b.props,
+      }));
+
+      updatePageMeta(page.id, {
+        ...page.meta,
+        ...json.meta,
+        slug: page.meta.slug, // preserve existing slug
+      });
+      updatePageTheme(page.id, json.theme);
+      useBuilderStore.getState().updatePage(page.id, { blocks: updatedBlocks });
+
+      toast({ title: 'JSON imported', description: 'Page updated from file.' });
+    } catch (err: any) {
+      toast({ title: 'Import failed', description: err?.message || 'Invalid JSON file', variant: 'destructive' });
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleSaveToCloud = async () => {
+    if (!page) return;
+    setIsSavingCloud(true);
+    try {
+      await savePage(page);
+      toast({ title: 'Saved to Firestore', description: `Page ${page.id}` });
+    } catch (err: any) {
+      toast({ title: 'Save failed', description: err?.message || 'Could not save page', variant: 'destructive' });
+    } finally {
+      setIsSavingCloud(false);
+    }
+  };
+
+  const handleLoadFromCloud = async () => {
+    if (!page) return;
+    setIsLoadingCloud(true);
+    try {
+      const loaded = await loadPage(page.id);
+      if (!loaded) {
+        toast({ title: 'Not found', description: `No page found for id ${page.id}`, variant: 'destructive' });
+        return;
+      }
+
+      const allowedTypes = new Set<string>(AllowedBlockTypes as readonly string[]);
+      const filteredBlocks = (loaded.blocks || []).filter((b: any) => b && allowedTypes.has(b.type));
+      const sanitized = sanitizeGeneratedBlocks(filteredBlocks as any);
+      const updatedBlocks = sanitized.map((b: any) => ({
+        id: uuidv4(),
+        type: b.type as BlockType,
+        props: b.props,
+      }));
+
+      updatePageMeta(page.id, { ...page.meta, ...loaded.meta });
+      updatePageTheme(page.id, loaded.theme || page.theme);
+      useBuilderStore.getState().updatePage(page.id, { blocks: updatedBlocks });
+
+      toast({ title: 'Loaded from Firestore', description: `Page ${page.id} refreshed.` });
+    } catch (err: any) {
+      toast({ title: 'Load failed', description: err?.message || 'Could not load page', variant: 'destructive' });
+    } finally {
+      setIsLoadingCloud(false);
+    }
   };
 
   const CONVERSION_PRESETS = [
@@ -779,6 +863,28 @@ Tone: Urgent, exclusive, transformational.`
                 className="border-builder-border text-builder-text"
               >
                 Download JSON
+              </Button>
+              <label className="inline-flex">
+                <input type="file" accept="application/json" className="hidden" onChange={handleUploadJson} />
+                <Button type="button" variant="outline" className="border-builder-border text-builder-text">
+                  Upload JSON
+                </Button>
+              </label>
+              <Button
+                variant="outline"
+                onClick={handleSaveToCloud}
+                disabled={isSavingCloud}
+                className="border-builder-border text-builder-text"
+              >
+                {isSavingCloud ? 'Saving…' : 'Save to Firestore'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleLoadFromCloud}
+                disabled={isLoadingCloud}
+                className="border-builder-border text-builder-text"
+              >
+                {isLoadingCloud ? 'Loading…' : 'Load from Firestore'}
               </Button>
               <p className="text-xs text-builder-text-muted">
                 Uses selected niche and dark-pattern enhancer
