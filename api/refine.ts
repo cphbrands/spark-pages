@@ -321,7 +321,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   
   // Validate request
   const validation = validateRequest(req.body);
-  if (!validation.success) {
+  if (validation.success === false) {
     return res.status(400).json({ error: validation.error });
   }
   

@@ -244,7 +244,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   
   // Validate request
   const validation = validateRequest(req.body);
-  if (!validation.success) {
+  if (validation.success === false) {
     return res.status(400).json({ error: validation.error });
   }
   
@@ -358,8 +358,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       description: typeof meta.description === 'string' ? meta.description.slice(0, 300) : undefined,
     };
 
+    const normalizeType = (type: any): string => {
+      if (typeof type !== 'string') return '';
+      // Map common aliases the LLM sometimes emits
+      const trimmed = type.trim();
+      if (trimmed.endsWith('Block')) {
+        return trimmed.replace(/Block$/, '');
+      }
+      if (trimmed === 'CTA') return 'CTASection';
+      return trimmed;
+    };
+
     const rawBlocks = Array.isArray((pageJson as any).blocks) ? (pageJson as any).blocks : [];
     const sanitizedBlocks = rawBlocks
+      .map((b: any) => ({
+        ...b,
+        type: normalizeType(b?.type),
+      }))
       .filter((b: any) => b && allowedBlockTypes.has(b.type))
       .map((b: any) => ({
         type: b.type,
