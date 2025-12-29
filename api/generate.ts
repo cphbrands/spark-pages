@@ -327,6 +327,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       buttonStyle: t.buttonStyle === 'outline' ? 'outline' : 'solid',
     };
 
+    // Sanitize meta + blocks to satisfy frontend schema
+    const allowedBlockTypes = new Set([
+      'Hero',
+      'Features',
+      'Benefits',
+      'Pricing',
+      'Countdown',
+      'FAQ',
+      'CTASection',
+      'Footer',
+      'Form',
+      'SocialProof',
+      'Guarantee',
+      'ImageGallery',
+      'Popup',
+      'StickyBar',
+    ]);
+
+    const slugify = (value: string) => value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 100) || 'landing-page';
+
+    const meta = (pageJson as any).meta ?? {};
+    (pageJson as any).meta = {
+      title: typeof meta.title === 'string' && meta.title.trim().length > 0 ? meta.title.trim().slice(0, 100) : 'Landing Page',
+      slug: slugify(typeof meta.slug === 'string' && meta.slug.trim().length > 0 ? meta.slug : (meta.title || 'landing-page')),
+      description: typeof meta.description === 'string' ? meta.description.slice(0, 300) : undefined,
+    };
+
+    const rawBlocks = Array.isArray((pageJson as any).blocks) ? (pageJson as any).blocks : [];
+    const sanitizedBlocks = rawBlocks
+      .filter((b: any) => b && allowedBlockTypes.has(b.type))
+      .map((b: any) => ({
+        type: b.type,
+        props: typeof b.props === 'object' && b.props !== null ? b.props : {},
+      }))
+      .slice(0, 20);
+
+    if (sanitizedBlocks.length === 0) {
+      return res.status(502).json({ error: 'Generation failed: no valid blocks returned', code: 'NO_BLOCKS' });
+    }
+
+    (pageJson as any).blocks = sanitizedBlocks;
+
     // Step 3: Generate hero image with Flux (Replicate) if prompt is provided
     if (heroImagePrompt) {
       console.log('Step 3: Generating AI hero image via Flux...');
