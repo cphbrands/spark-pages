@@ -42,6 +42,8 @@ import { ThemeSettings } from '@/components/ThemeSettings';
 import { RefinePrompt } from '@/components/RefinePrompt';
 import { PsychologyBooster } from '@/components/PsychologyBooster';
 import { BlockType, defaultBlockProps, BlockPropsSchemas } from '@/lib/schemas';
+import { AllowedBlockTypes } from '@/lib/api-schemas';
+import { sanitizeGeneratedBlocks } from '@/lib/block-sanitizer';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { refineLandingPage } from '@/lib/refine-service';
@@ -272,7 +274,14 @@ Tone: Urgent, exclusive, transformational.`
       if (!page) return;
 
       // Add IDs to blocks and update current page
-      const updatedBlocks = (pageData.blocks || []).map((b: any) => ({
+      const allowedTypes = new Set<string>(AllowedBlockTypes as readonly string[]);
+      const rawBlocks = Array.isArray(pageData.blocks) ? pageData.blocks : [];
+      const filteredBlocks = rawBlocks.filter((b: any) => b && allowedTypes.has(b.type));
+      const sanitized = sanitizeGeneratedBlocks(
+        filteredBlocks as any
+      );
+
+      const updatedBlocks = sanitized.map((b: any) => ({
         id: uuidv4(),
         type: b.type as BlockType,
         props: b.props,

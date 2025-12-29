@@ -96,7 +96,7 @@ export default function Dashboard() {
             <Button 
               variant="outline" 
               onClick={handleCreateBlank}
-              className="border-builder-border text-builder-text hover:bg-builder-surface-hover"
+              className="border-builder-border text-builder-text bg-builder-surface/80 hover:bg-builder-surface-hover shadow-sm"
             >
               <Plus className="w-4 h-4 mr-2" />
               Blank Page

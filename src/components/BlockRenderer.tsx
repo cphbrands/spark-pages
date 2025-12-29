@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Block, Theme } from '@/lib/schemas';
+import { Block, Theme, defaultBlockProps, BlockType } from '@/lib/schemas';
 import {
   HeroBlock,
   FeaturesBlock,
@@ -147,9 +147,12 @@ interface BlockRendererProps {
 }
 
 export function BlockRenderer({ block, theme, pageId, pageSlug, onLeadSubmit }: BlockRendererProps) {
-  const props = block.props as Record<string, unknown>;
-
   const type = block.type as string;
+  const baseDefaults = defaultBlockProps[type as BlockType] as Record<string, unknown> | undefined;
+  const props = {
+    ...(baseDefaults || {}),
+    ...(block.props as Record<string, unknown> | undefined),
+  } as Record<string, unknown>;
 
   // Normalize and render based on block type (supporting new conversion-focused blocks)
   switch (type) {
