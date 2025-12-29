@@ -306,7 +306,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Failed to parse LLM response as JSON', code: 'LLM_PARSE_ERROR' });
     }
     
-  const { heroImagePrompt: _heroImagePrompt, ...pageJson } = generatedContent;
+  const { heroImagePrompt, ...pageJson } = generatedContent;
 
     // Apply dark-pattern enhancer to enforce urgency/scarcity stacking
     try {
@@ -327,8 +327,76 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       buttonStyle: t.buttonStyle === 'outline' ? 'outline' : 'solid',
     };
 
-    // Image generation removed (OpenAI image models disabled). Frontend/blocks should supply or keep existing images.
-    console.log('Generation complete (no AI imagery step)');
+    // Step 3: Generate hero image with Flux (Replicate) if prompt is provided
+    if (heroImagePrompt) {
+      console.log('Step 3: Generating AI hero image via Flux...');
+
+      const fluxToken = process.env.REPLICATE_API_TOKEN;
+      if (!fluxToken) {
+        console.warn('No REPLICATE_API_TOKEN set; skipping hero image generation');
+      } else {
+        const fluxPrompt = `${heroImagePrompt}. STYLE: Ultra high-end commercial photography, cinematic 35mm film look, dramatic lighting with rich shadows. MOOD: Aspirational, premium, emotionally evocative. COMPOSITION: Clean negative space for text overlay, rule of thirds, depth of field. QUALITY: 4K+, sharp details, professional color grading. RESTRICTIONS: Absolutely NO text, NO UI elements, NO countdown timers, NO logos.`;
+
+        const createPrediction = async () => {
+          const resp = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${fluxToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              input: {
+                prompt: fluxPrompt,
+                prompt_upsampling: true,
+                output_format: 'png',
+              },
+            }),
+          });
+
+          if (!resp.ok) {
+            const errorText = await resp.text().catch(() => '');
+            throw new Error(`Flux create failed ${resp.status}: ${errorText}`);
+          }
+
+          return resp.json();
+        };
+
+        const pollPrediction = async (getUrl: string) => {
+          for (let i = 0; i < 10; i++) {
+            const resp = await fetch(getUrl, {
+              headers: { 'Authorization': `Bearer ${fluxToken}` },
+            });
+            if (!resp.ok) {
+              const errorText = await resp.text().catch(() => '');
+              throw new Error(`Flux poll failed ${resp.status}: ${errorText}`);
+            }
+            const data = await resp.json();
+            if (data.status === 'succeeded') return data;
+            if (data.status === 'failed' || data.status === 'canceled') {
+              throw new Error(`Flux generation ${data.status}`);
+            }
+            await new Promise(res => setTimeout(res, 1500));
+          }
+          throw new Error('Flux generation timeout');
+        };
+
+        try {
+          const prediction = await createPrediction();
+          const result = await pollPrediction(prediction.urls.get);
+          const imageUrl = Array.isArray(result.output) ? result.output[0] : null;
+          if (imageUrl && pageJson.blocks) {
+            const heroBlock = pageJson.blocks.find((b: { type: string }) => b.type === 'Hero');
+            if (heroBlock) {
+              heroBlock.props.imageUrl = imageUrl;
+            }
+          }
+        } catch (err) {
+          console.error('Flux image generation failed, continuing without image', err);
+        }
+      }
+    }
+
+    console.log('Generation complete (Flux image step attempted)');
     return res.status(200).json(pageJson);
     
   } catch (error) {
