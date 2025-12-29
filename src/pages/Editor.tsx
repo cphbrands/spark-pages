@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBuilderStore } from '@/lib/store';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, 
   Monitor, 
@@ -99,6 +99,7 @@ export default function Editor() {
   const [enhanceWithDarkPatterns, setEnhanceWithDarkPatterns] = useState<boolean>(true);
   const [isSavingCloud, setIsSavingCloud] = useState(false);
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   
   const handleDownloadJson = () => {
     if (!page) return;
@@ -864,13 +865,23 @@ Tone: Urgent, exclusive, transformational.`
               >
                 Download JSON
               </Button>
-              <label className="inline-flex">
-                <input type="file" accept="application/json" className="hidden" onChange={handleUploadJson} />
-                <Button type="button" variant="outline" className="border-builder-border text-builder-text">
-                  Upload JSON
-                </Button>
-              </label>
+              <input
+                ref={uploadInputRef}
+                type="file"
+                accept="application/json"
+                className="hidden"
+                onChange={handleUploadJson}
+              />
               <Button
+                type="button"
+                variant="outline"
+                className="border-builder-border text-builder-text"
+                onClick={() => uploadInputRef.current?.click()}
+              >
+                Upload JSON
+              </Button>
+              <Button
+                type="button"
                 variant="outline"
                 onClick={handleSaveToCloud}
                 disabled={isSavingCloud}
@@ -879,6 +890,7 @@ Tone: Urgent, exclusive, transformational.`
                 {isSavingCloud ? 'Saving…' : 'Save to Firestore'}
               </Button>
               <Button
+                type="button"
                 variant="outline"
                 onClick={handleLoadFromCloud}
                 disabled={isLoadingCloud}
