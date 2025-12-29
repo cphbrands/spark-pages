@@ -6,10 +6,15 @@ import type { Page } from './schemas';
 // Basic Firestore helpers for pages. Extend with user scoping as needed.
 const pagesCol = collection(db, 'pages');
 
-async function ensureSignedIn(): Promise<User> {
+async function ensureSignedIn(): Promise<User | null> {
   if (auth.currentUser) return auth.currentUser;
-  const result = await signInAnonymously(auth);
-  return result.user;
+  try {
+    const result = await signInAnonymously(auth);
+    return result.user;
+  } catch (err) {
+    // If anonymous auth is disabled, continue without auth; Firestore rules must allow it.
+    return null;
+  }
 }
 
 export async function savePage(page: Page) {

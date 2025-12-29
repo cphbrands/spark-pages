@@ -126,12 +126,19 @@ export default function Editor() {
         throw new Error('Invalid JSON file');
       }
 
-      if (!Array.isArray(json.blocks)) {
+      // Accept blocks directly or nested under `page.blocks`
+      const blocksInput = Array.isArray((json as any).blocks)
+        ? (json as any).blocks
+        : Array.isArray((json as any).page?.blocks)
+          ? (json as any).page.blocks
+          : null;
+
+      if (!blocksInput) {
         throw new Error('Invalid page JSON structure: "blocks" must be an array');
       }
 
       const allowedTypes = new Set<string>(AllowedBlockTypes as readonly string[]);
-      const filteredBlocks = json.blocks.filter((b: any) => b && allowedTypes.has(b.type));
+      const filteredBlocks = blocksInput.filter((b: any) => b && allowedTypes.has(b.type));
       const sanitized = sanitizeGeneratedBlocks(filteredBlocks as any);
       const updatedBlocks = sanitized.map((b: any) => ({
         id: uuidv4(),
@@ -139,8 +146,17 @@ export default function Editor() {
         props: b.props,
       }));
 
-      const incomingMeta = typeof json.meta === 'object' && json.meta !== null ? json.meta : {};
-      const incomingTheme = json.theme && typeof json.theme === 'object' ? json.theme : page.theme;
+      const incomingMeta = typeof (json as any).meta === 'object' && (json as any).meta !== null
+        ? (json as any).meta
+        : typeof (json as any).page?.meta === 'object' && (json as any).page.meta !== null
+          ? (json as any).page.meta
+          : {};
+
+      const incomingTheme = (json as any).theme && typeof (json as any).theme === 'object'
+        ? (json as any).theme
+        : (json as any).page?.theme && typeof (json as any).page.theme === 'object'
+          ? (json as any).page.theme
+          : page.theme;
 
       updatePageMeta(page.id, {
         ...page.meta,
