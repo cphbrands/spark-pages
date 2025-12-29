@@ -71,3 +71,20 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Firebase setup
+
+1) Install (already added): `firebase` SDK.
+2) Add these env vars (Vercel project settings or `.env.local`):
+
+```
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+```
+
+3) Client init lives in `src/lib/firebase.ts` (exports `db`, `auth`, `storage`).
+4) Firestore helpers: `src/lib/page-service.ts` has simple `savePage` / `loadPage` for `pages` collection. Extend with auth/user scoping as needed.
