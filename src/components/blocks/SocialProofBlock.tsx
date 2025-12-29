@@ -21,10 +21,16 @@ interface SocialProofBlockProps {
   logos?: Logo[];
   testimonials?: Testimonial[];
   stats?: { value: string; label: string }[];
+  title?: string;
+  layout?: 'grid' | 'carousel';
+  metadata?: {
+    aiGenerated: boolean;
+    disclosureText?: string;
+  };
   theme: Theme;
 }
 
-export function SocialProofBlock({ heading, subheading, logos, testimonials, stats, theme }: SocialProofBlockProps) {
+export function SocialProofBlock({ heading, subheading, logos, testimonials, stats, title, layout = 'grid', metadata, theme }: SocialProofBlockProps) {
   const renderStars = (rating: number = 5) => (
     <div className="flex gap-0.5 mb-3">
       {[...Array(5)].map((_, i) => (
@@ -58,6 +64,24 @@ export function SocialProofBlock({ heading, subheading, logos, testimonials, sta
             {subheading && (
               <p className="text-lg opacity-70 max-w-2xl mx-auto">{subheading}</p>
             )}
+          </div>
+        )}
+
+        {title && !heading && (
+          <div className="text-center mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold" style={{ fontFamily: theme.font === 'outfit' ? 'Outfit, sans-serif' : theme.font === 'inter' ? 'Inter, sans-serif' : 'system-ui' }}>
+              {title}
+            </h2>
+          </div>
+        )}
+
+        {metadata?.aiGenerated && (
+          <div className="p-3 mb-6 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg flex items-start gap-2">
+            <span className="mt-0.5">⚠️</span>
+            <div>
+              <strong>Disclosure:</strong>{' '}
+              {metadata.disclosureText || 'These testimonials are AI-generated examples to demonstrate potential customer feedback.'}
+            </div>
           </div>
         )}
 
@@ -105,11 +129,19 @@ export function SocialProofBlock({ heading, subheading, logos, testimonials, sta
         
         {/* Testimonials */}
         {testimonials && testimonials.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={
+            layout === 'carousel'
+              ? 'flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory'
+              : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+          }>
             {testimonials.map((testimonial, index) => (
               <div 
                 key={index}
-                className="p-6 rounded-2xl relative overflow-hidden group transition-all duration-300 hover:-translate-y-1"
+                className={
+                  layout === 'carousel'
+                    ? 'p-6 rounded-2xl relative overflow-hidden group transition-all duration-300 hover:-translate-y-1 min-w-[280px] snap-center'
+                    : 'p-6 rounded-2xl relative overflow-hidden group transition-all duration-300 hover:-translate-y-1'
+                }
                 style={{
                   backgroundColor: theme.mode === 'dark' ? '#334155' : '#ffffff',
                   boxShadow: theme.mode === 'dark' 

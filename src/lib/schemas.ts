@@ -78,6 +78,12 @@ export const SocialProofPropsSchema = z.object({
     value: z.string().max(20),
     label: z.string().max(50),
   })).max(6).optional(),
+  title: z.string().max(120).optional(),
+  layout: z.enum(['grid', 'carousel']).optional(),
+  metadata: z.object({
+    aiGenerated: z.boolean(),
+    disclosureText: z.string().max(200).optional(),
+  }).optional(),
 });
 
 export const PricingPropsSchema = z.object({
@@ -216,6 +222,27 @@ export const TemplateSchema = PageSchema.extend({
 });
 
 export type Template = z.infer<typeof TemplateSchema>;
+
+// Testimonial types (exported for reuse in UI components)
+export interface Testimonial {
+  name: string;
+  text: string;
+  role?: string;
+  avatarUrl?: string;
+}
+
+export interface SocialProofBlock {
+  type: 'SocialProof';
+  props: {
+    testimonials: Testimonial[];
+    metadata?: {
+      aiGenerated: boolean;
+      disclosureText?: string;
+    };
+    title?: string;
+    layout?: 'grid' | 'carousel';
+  };
+}
 
 // Lead Schema
 export const LeadSchema = z.object({

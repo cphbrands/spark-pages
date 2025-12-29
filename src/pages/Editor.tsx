@@ -100,6 +100,7 @@ export default function Editor() {
   const [isSavingCloud, setIsSavingCloud] = useState(false);
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const [isGeneratingUGC, setIsGeneratingUGC] = useState(false);
   
   const handleDownloadJson = () => {
     if (!page) return;
@@ -215,6 +216,59 @@ export default function Editor() {
       toast({ title: 'Load failed', description: err?.message || 'Could not load page', variant: 'destructive' });
     } finally {
       setIsLoadingCloud(false);
+    }
+  };
+
+  const handleGenerateTestimonials = async () => {
+    if (!page) return;
+    setIsGeneratingUGC(true);
+    try {
+      const response = await fetch('/api/generate-ugc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: page.meta.title || 'High-conversion offer',
+          count: 3,
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Failed to generate testimonials');
+      }
+
+      const data = await response.json();
+      const testimonials = Array.isArray(data?.testimonials) ? data.testimonials : [];
+      if (!testimonials.length) {
+        throw new Error('No testimonials returned');
+      }
+
+      const newBlock = {
+        id: uuidv4(),
+        type: 'SocialProof' as BlockType,
+        props: {
+          heading: 'What Our Customers Say',
+          testimonials: testimonials.map((t: any) => ({
+            quote: t.text,
+            author: t.name,
+            role: t.role,
+            avatarUrl: t.avatarUrl,
+          })),
+          metadata: {
+            aiGenerated: true,
+            disclosureText: 'AI-generated example testimonials',
+          },
+          layout: 'grid',
+        },
+      };
+
+      const updatedBlocks = [...page.blocks, newBlock];
+      useBuilderStore.getState().updatePage(page.id, { blocks: updatedBlocks });
+      toast({ title: 'Testimonials added', description: 'AI-generated social proof inserted.' });
+    } catch (error: any) {
+      toast({ title: 'Generation failed', description: error?.message || 'Could not generate testimonials', variant: 'destructive' });
+    } finally {
+      setIsGeneratingUGC(false);
     }
   };
 
@@ -881,6 +935,13 @@ Tone: Urgent, exclusive, transformational.`
                 className="bg-primary hover:bg-primary/90"
               >
                 {isGenerating ? 'Generating…' : 'Generate with these settings'}
+              </Button>
+              <Button
+                onClick={handleGenerateTestimonials}
+                disabled={isGeneratingUGC}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                {isGeneratingUGC ? 'Generating UGC…' : '✨ Generate AI Testimonials'}
               </Button>
               <Button 
                 variant="outline"
