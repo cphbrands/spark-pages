@@ -121,8 +121,13 @@ export default function Editor() {
     try {
       const text = await file.text();
       const json = JSON.parse(text);
-      if (!json.meta || !json.theme || !Array.isArray(json.blocks)) {
-        throw new Error('Invalid page JSON structure');
+
+      if (typeof json !== 'object' || json === null) {
+        throw new Error('Invalid JSON file');
+      }
+
+      if (!Array.isArray(json.blocks)) {
+        throw new Error('Invalid page JSON structure: "blocks" must be an array');
       }
 
       const allowedTypes = new Set<string>(AllowedBlockTypes as readonly string[]);
@@ -134,12 +139,15 @@ export default function Editor() {
         props: b.props,
       }));
 
+      const incomingMeta = typeof json.meta === 'object' && json.meta !== null ? json.meta : {};
+      const incomingTheme = json.theme && typeof json.theme === 'object' ? json.theme : page.theme;
+
       updatePageMeta(page.id, {
         ...page.meta,
-        ...json.meta,
+        ...incomingMeta,
         slug: page.meta.slug, // preserve existing slug
       });
-      updatePageTheme(page.id, json.theme);
+      updatePageTheme(page.id, incomingTheme);
       useBuilderStore.getState().updatePage(page.id, { blocks: updatedBlocks });
 
       toast({ title: 'JSON imported', description: 'Page updated from file.' });
@@ -861,7 +869,7 @@ Tone: Urgent, exclusive, transformational.`
               <Button 
                 variant="outline"
                 onClick={handleDownloadJson}
-                className="border-builder-border text-builder-text"
+                className="border-builder-border text-builder-text bg-builder-surface hover:bg-builder-surface-hover"
               >
                 Download JSON
               </Button>
@@ -875,7 +883,7 @@ Tone: Urgent, exclusive, transformational.`
               <Button
                 type="button"
                 variant="outline"
-                className="border-builder-border text-builder-text"
+                className="border-builder-border text-builder-text bg-builder-surface hover:bg-builder-surface-hover"
                 onClick={() => uploadInputRef.current?.click()}
               >
                 Upload JSON
@@ -885,7 +893,7 @@ Tone: Urgent, exclusive, transformational.`
                 variant="outline"
                 onClick={handleSaveToCloud}
                 disabled={isSavingCloud}
-                className="border-builder-border text-builder-text"
+                className="border-builder-border text-builder-text bg-builder-surface hover:bg-builder-surface-hover disabled:opacity-60"
               >
                 {isSavingCloud ? 'Saving…' : 'Save to Firestore'}
               </Button>
@@ -894,7 +902,7 @@ Tone: Urgent, exclusive, transformational.`
                 variant="outline"
                 onClick={handleLoadFromCloud}
                 disabled={isLoadingCloud}
-                className="border-builder-border text-builder-text"
+                className="border-builder-border text-builder-text bg-builder-surface hover:bg-builder-surface-hover disabled:opacity-60"
               >
                 {isLoadingCloud ? 'Loading…' : 'Load from Firestore'}
               </Button>
