@@ -306,7 +306,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Failed to parse LLM response as JSON', code: 'LLM_PARSE_ERROR' });
     }
     
-    const { heroImagePrompt, ...pageJson } = generatedContent;
+  const { heroImagePrompt: _heroImagePrompt, ...pageJson } = generatedContent;
 
     // Apply dark-pattern enhancer to enforce urgency/scarcity stacking
     try {
@@ -327,62 +327,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       buttonStyle: t.buttonStyle === 'outline' ? 'outline' : 'solid',
     };
 
-    // Step 3: Generate hero image with AI
-    if (heroImagePrompt) {
-      console.log('Step 3: Generating AI hero image...');
-
-      const imagePrompt = `${heroImagePrompt}. STYLE: Ultra high-end commercial photography, cinematic 35mm film look, dramatic lighting with rich shadows. MOOD: Aspirational, premium, emotionally evocative. COMPOSITION: Clean negative space for text overlay, rule of thirds, depth of field. QUALITY: 8K resolution, sharp details, professional color grading. RESTRICTIONS: Absolutely NO text, NO UI elements, NO countdown timers, NO logos.`;
-
-      const generateImage = async (model: 'gpt-image-1' | 'dall-e-3') => {
-        const size = model === 'gpt-image-1' ? '1536x1024' : '1024x1024';
-        const resp = await fetch('https://api.openai.com/v1/images/generations', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model,
-            prompt: imagePrompt,
-            n: 1,
-            size,
-            quality: 'high',
-            response_format: 'b64_json',
-          }),
-        });
-
-        if (!resp.ok) {
-          const errorText = await resp.text().catch(() => '');
-          console.error(`Image generation failed for ${model}, continuing without image`, {
-            status: resp.status,
-            statusText: resp.statusText,
-            body: errorText?.slice(0, 5000),
-          });
-          return { imageUrl: null as string | null, status: resp.status };
-        }
-
-        const data = await resp.json();
-        const b64 = data.data?.[0]?.b64_json;
-        const url = b64 ? `data:image/png;base64,${b64}` : data.data?.[0]?.url;
-        return { imageUrl: url as string | null, status: resp.status };
-      };
-
-      // Attempt gpt-image-1 first, fallback to dall-e-3 if 403 (org not verified)
-      let result = await generateImage('gpt-image-1');
-      if (!result.imageUrl && result.status === 403) {
-        console.log('Falling back to dall-e-3 for hero image (gpt-image-1 not permitted)');
-        result = await generateImage('dall-e-3');
-      }
-
-      if (result.imageUrl && pageJson.blocks) {
-        const heroBlock = pageJson.blocks.find((b: { type: string }) => b.type === 'Hero');
-        if (heroBlock) {
-          heroBlock.props.imageUrl = result.imageUrl;
-        }
-      }
-    }
-    
-    console.log('Generation complete with research and AI imagery');
+    // Image generation removed (OpenAI image models disabled). Frontend/blocks should supply or keep existing images.
+    console.log('Generation complete (no AI imagery step)');
     return res.status(200).json(pageJson);
     
   } catch (error) {
