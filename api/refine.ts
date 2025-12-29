@@ -125,35 +125,66 @@ async function researchTopic(prompt: string, context: string): Promise<string> {
   }
 }
 
-// Generate image with OpenAI
+// Generate image with Replicate Flux
 async function generateImage(prompt: string): Promise<string | null> {
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (!openaiKey) return null;
+  const fluxToken = process.env.REPLICATE_API_TOKEN;
+  if (!fluxToken) {
+    console.warn('No REPLICATE_API_TOKEN set; skipping refine image generation');
+    return null;
+  }
 
-  try {
-    const imagePrompt = `${prompt}. Ultra high quality, professional commercial photography, cinematic lighting. No text, no UI elements. Clean, dramatic, aspirational.`;
-    
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
+  const fluxPrompt = `${prompt}. STYLE: Ultra high-end commercial photography, cinematic 35mm film look, dramatic lighting with rich shadows. MOOD: Aspirational, premium, emotionally evocative. COMPOSITION: Clean negative space for text overlay, rule of thirds, depth of field. QUALITY: 4K+, sharp details, professional color grading. RESTRICTIONS: Absolutely NO text, NO UI elements, NO countdown timers, NO logos.`;
+
+  const createPrediction = async () => {
+    const resp = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiKey}`,
+        'Authorization': `Bearer ${fluxToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-image-1',
-        prompt: imagePrompt,
-        n: 1,
-        size: '1536x1024',
-        quality: 'high',
+        input: {
+          prompt: fluxPrompt,
+          prompt_upsampling: true,
+          output_format: 'png',
+        },
       }),
     });
 
-    if (!response.ok) return null;
+    if (!resp.ok) {
+      const errorText = await resp.text().catch(() => '');
+      throw new Error(`Flux create failed ${resp.status}: ${errorText}`);
+    }
 
-    const data = await response.json();
-    const b64 = data.data?.[0]?.b64_json;
-    return b64 ? `data:image/png;base64,${b64}` : data.data?.[0]?.url || null;
-  } catch {
+    return resp.json();
+  };
+
+  const pollPrediction = async (getUrl: string) => {
+    for (let i = 0; i < 10; i++) {
+      const resp = await fetch(getUrl, {
+        headers: { 'Authorization': `Bearer ${fluxToken}` },
+      });
+      if (!resp.ok) {
+        const errorText = await resp.text().catch(() => '');
+        throw new Error(`Flux poll failed ${resp.status}: ${errorText}`);
+      }
+      const data = await resp.json();
+      if (data.status === 'succeeded') return data;
+      if (data.status === 'failed' || data.status === 'canceled') {
+        throw new Error(`Flux generation ${data.status}`);
+      }
+      await new Promise(res => setTimeout(res, 1500));
+    }
+    throw new Error('Flux generation timeout');
+  };
+
+  try {
+    const prediction = await createPrediction();
+    const result = await pollPrediction(prediction.urls.get);
+    const imageUrl = Array.isArray(result.output) ? result.output[0] : null;
+    return imageUrl || null;
+  } catch (err) {
+    console.error('Flux image generation failed, continuing without image', err);
     return null;
   }
 }
