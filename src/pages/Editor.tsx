@@ -96,6 +96,18 @@ export default function Editor() {
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [selectedNiche, setSelectedNiche] = useState<string>('weight-loss');
   const [enhanceWithDarkPatterns, setEnhanceWithDarkPatterns] = useState<boolean>(true);
+  
+  const handleDownloadJson = () => {
+    if (!page) return;
+    const fileName = `${page.meta.slug || 'page'}.json`;
+    const blob = new Blob([JSON.stringify(page, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const CONVERSION_PRESETS = [
     {
@@ -760,6 +772,13 @@ Tone: Urgent, exclusive, transformational.`
                 className="bg-primary hover:bg-primary/90"
               >
                 {isGenerating ? 'Generating…' : 'Generate with these settings'}
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleDownloadJson}
+                className="border-builder-border text-builder-text"
+              >
+                Download JSON
               </Button>
               <p className="text-xs text-builder-text-muted">
                 Uses selected niche and dark-pattern enhancer

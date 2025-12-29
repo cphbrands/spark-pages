@@ -57,7 +57,7 @@ export default function Preview() {
       
       {/* Floating Control Bar */}
       {showControls && (
-        <div className="fixed top-6 right-6 z-50 animate-slide-up">
+        <div className="fixed top-16 right-8 z-50 animate-slide-up">
           <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/80 backdrop-blur-xl border border-white/10 shadow-2xl">
             <span className="text-white/60 text-sm mr-2">Preview Mode</span>
             
@@ -110,7 +110,7 @@ export default function Preview() {
       {!showControls && (
         <button
           onClick={() => setShowControls(true)}
-          className="fixed top-6 right-6 z-50 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur text-white text-sm hover:bg-black/80 transition-colors"
+          className="fixed top-16 right-8 z-50 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur text-white text-sm hover:bg-black/80 transition-colors"
         >
           Show Controls
         </button>
