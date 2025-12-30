@@ -15,6 +15,7 @@ import { runLLM } from '../api-lib/llm.js';
 import { SYSTEM_PROMPT } from '../api-lib/prompt.js';
 import { enhanceWithDarkPatterns } from '../api-lib/manipulativeEnhancer.js';
 import { generateConversionPage } from '../api-lib/conversionEngine.js';
+import { sanitizeToFrontendSchemas } from '../api-lib/serverBlockSanitizer.js';
 
 type GenerateConversionOptions = NonNullable<Parameters<typeof generateConversionPage>[1]>;
 
@@ -95,8 +96,8 @@ function validateRequest(body: unknown): { success: true; data: RequestData } | 
       return { success: false, error: 'reference must be an object' };
     }
     const ref = reference as Record<string, unknown>;
-    if (!['url', 'html'].includes(ref.type as string)) {
-      return { success: false, error: 'reference.type must be "url" or "html"' };
+    if (!['url', 'html', 'image'].includes(ref.type as string)) {
+      return { success: false, error: 'reference.type must be "url", "html", or "image"' };
     }
     if (typeof ref.value !== 'string' || ref.value.length > 100000) {
       return { success: false, error: 'reference.value must be a string under 100000 chars' };
@@ -392,6 +393,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'ImageGallery',
       'Popup',
       'StickyBar',
+      'UGCVideo',
     ]);
 
     const slugify = (value: string) => value
@@ -442,11 +444,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .filter((b): b is SanitizedBlock => Boolean(b))
       .slice(0, 20);
 
-    if (sanitizedBlocks.length === 0) {
+    const schemaAlignedBlocks = sanitizeToFrontendSchemas(sanitizedBlocks);
+
+    if (schemaAlignedBlocks.length === 0) {
       return res.status(502).json({ error: 'Generation failed: no valid blocks returned', code: 'NO_BLOCKS' });
     }
 
-    pageJson.blocks = sanitizedBlocks;
+    pageJson.blocks = schemaAlignedBlocks;
 
     // Normalize page envelope to match frontend Page schema
     pageJson.id = typeof (pageJson as { id?: unknown }).id === 'string' && isUuid((pageJson as { id: string }).id)
@@ -517,7 +521,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const result = await pollPrediction(prediction.urls.get);
           const imageUrl = Array.isArray(result.output) ? result.output[0] : null;
           if (imageUrl) {
-            const heroBlock = sanitizedBlocks.find((b) => b.type === 'Hero');
+            const heroBlock = schemaAlignedBlocks.find((b) => b.type === 'Hero');
             if (heroBlock) {
               heroBlock.props = { ...heroBlock.props, imageUrl };
             }
@@ -563,9 +567,9 @@ export async function POST(req: Request) {
 
     const referencePayload: GenerateConversionOptions['reference'] =
       isRecord(reference)
-      && (reference.type === 'url' || reference.type === 'html')
+      && (reference.type === 'url' || reference.type === 'html' || reference.type === 'image')
       && typeof reference.value === 'string'
-        ? { type: reference.type, value: reference.value }
+        ? { type: reference.type as 'url' | 'html' | 'image', value: reference.value }
         : undefined;
 
     const nicheValue: GenerateConversionOptions['niche'] =

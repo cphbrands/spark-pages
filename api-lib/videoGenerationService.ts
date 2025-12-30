@@ -233,6 +233,15 @@ export async function generateVideoTestimonial({ productName, imageUrl, style = 
   };
 }
 
+export async function generateVideoPrompt(productName: string, imageUrl?: string, style: 'ugc' | 'cinematic' = 'ugc') {
+  if (!productName) throw new Error('productName is required');
+  // Image URL is optional for prompt-only generation to enable early preview.
+  const insights = await tavilySearch(productName);
+  const prompt = await createOptimizedPrompt(productName, insights, style + (imageUrl ? ` using ${imageUrl}` : ''));
+  return { prompt };
+}
+
 export default {
   generateVideoTestimonial,
+  generateVideoPrompt,
 };

@@ -11,6 +11,7 @@ import Editor from "./pages/Editor";
 import PublicPage from "./pages/PublicPage";
 import Preview from "./pages/Preview";
 import Leads from "./pages/Leads";
+import Wizard from "./pages/Wizard";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/builder" element={<Dashboard />} />
+            <Route path="/builder/wizard" element={<Wizard />} />
             <Route path="/builder/pages/:id" element={<Editor />} />
             <Route path="/builder/leads" element={<Leads />} />
             <Route path="/preview/:id" element={<Preview />} />

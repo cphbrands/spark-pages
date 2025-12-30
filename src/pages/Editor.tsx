@@ -1,5 +1,6 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useBuilderStore } from '@/lib/store';
+import { useWizardStore } from '@/lib/wizard-store';
 import { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, 
@@ -110,6 +111,8 @@ const sanitizeBlocksWithIds = (blocks: GenerateResponse['blocks']) =>
 export default function Editor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { setPageId: setWizardPageId, setStep: setWizardStep } = useWizardStore();
   const {
     pages,
     previewMode,
@@ -131,6 +134,13 @@ export default function Editor() {
 
   const page = pages.find(p => p.id === id);
   const selectedBlock = page?.blocks.find(b => b.id === selectedBlockId);
+
+  useEffect(() => {
+    if (searchParams.get('wizard') === '1' && page) {
+      setWizardPageId(page.id);
+      setWizardStep('edit-page');
+    }
+  }, [page, searchParams, setWizardPageId, setWizardStep]);
 
   const [showAddBlock, setShowAddBlock] = useState(false);
   const [isRefining, setIsRefining] = useState(false);

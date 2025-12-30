@@ -77,6 +77,14 @@ export default function Dashboard() {
               <Users className="w-4 h-4 mr-2" />
               Leads
             </Button>
+            <Button 
+              variant="ghost" 
+              className="text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-hover"
+              onClick={() => navigate('/builder/wizard')}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Flow Wizard
+            </Button>
           </nav>
         </div>
       </header>
