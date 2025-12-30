@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useBuilderStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Theme } from '@/lib/schemas';
+import { createCancellableFetch } from '@/lib/api-client';
 
 interface UGCVideoBlockProps {
   blockId: string;
@@ -21,6 +22,14 @@ interface UGCVideoBlockProps {
   theme: Theme;
 }
 
+type PollResponse = {
+  status: 'processing' | 'ready' | 'error';
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  error?: string;
+  metadata?: { aiGenerated: boolean; disclosureText?: string };
+};
+
 export function UGCVideoBlock(props: UGCVideoBlockProps) {
   const {
     blockId,
@@ -38,6 +47,7 @@ export function UGCVideoBlock(props: UGCVideoBlockProps) {
   const updateBlock = useBuilderStore((s) => s.updateBlock);
   const [isGenerating, setIsGenerating] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fetcherRef = useRef(createCancellableFetch());
 
   const setProps = (updates: Record<string, unknown>) => {
     if (!pageId) return;
@@ -45,12 +55,15 @@ export function UGCVideoBlock(props: UGCVideoBlockProps) {
   };
 
   useEffect(() => {
+    const fetcher = fetcherRef.current;
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      fetcher.cancel();
     };
   }, []);
 
   const handleGenerate = async () => {
+    if (isGenerating || status === 'processing') return;
     if (!imageUrl || !productName) {
       setProps({ status: 'error', error: 'Product name and image URL are required.' });
       return;
@@ -59,7 +72,7 @@ export function UGCVideoBlock(props: UGCVideoBlockProps) {
     setProps({ status: 'processing', error: undefined });
 
     try {
-      const response = await fetch('/api/generate-ugc-video', {
+      const response = await fetcherRef.current.run('/api/generate-ugc-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productName, imageUrl, style }),
@@ -75,8 +88,8 @@ export function UGCVideoBlock(props: UGCVideoBlockProps) {
 
       const interval = setInterval(async () => {
         try {
-          const pollRes = await fetch(`/api/generate-ugc-video?id=${encodeURIComponent(taskId)}`);
-          const data = await pollRes.json();
+          const pollRes = await fetcherRef.current.run(`/api/generate-ugc-video?id=${encodeURIComponent(taskId)}`);
+          const data: PollResponse = await pollRes.json();
 
           if (data.status === 'ready') {
             clearInterval(interval);
@@ -97,17 +110,19 @@ export function UGCVideoBlock(props: UGCVideoBlockProps) {
             setIsGenerating(false);
             setProps({ status: 'error', error: data.error || 'Generation failed' });
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           clearInterval(interval);
           pollRef.current = null;
           setIsGenerating(false);
-          setProps({ status: 'error', error: err?.message || 'Generation failed' });
+          const message = err instanceof Error ? err.message : 'Generation failed';
+          setProps({ status: 'error', error: message });
         }
       }, 3000);
       pollRef.current = interval;
-    } catch (err: any) {
+    } catch (err: unknown) {
       setIsGenerating(false);
-      setProps({ status: 'error', error: err?.message || 'Generation failed' });
+      const message = err instanceof Error ? err.message : 'Generation failed';
+      setProps({ status: 'error', error: message });
     }
   };
 
@@ -145,7 +160,11 @@ export function UGCVideoBlock(props: UGCVideoBlockProps) {
         </div>
       ) : (
         <div className="space-y-2">
-          <Button onClick={handleGenerate} disabled={!imageUrl} className="bg-purple-600 hover:bg-purple-700 text-white">
+          <Button
+            onClick={handleGenerate}
+            disabled={!imageUrl || isGenerating || status === 'processing'}
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+          >
             🎬 Generate AI Video Testimonial
           </Button>
           <div className="text-xs opacity-70">Requires a product image URL to start.</div>

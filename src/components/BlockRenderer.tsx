@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import { Block, Theme, defaultBlockProps, BlockType } from '@/lib/schemas';
 import {
   HeroBlock,
@@ -17,6 +17,37 @@ import {
   StickyBarBlock as LegacyStickyBarBlock,
   UGCVideoBlock,
 } from '@/components/blocks';
+
+type BlockRendererType = BlockType | 'PriceDeception' | 'CountdownBlock';
+
+type BlockPropsMap = {
+  Hero: Omit<ComponentProps<typeof HeroBlock>, 'theme'>;
+  Features: Omit<ComponentProps<typeof FeaturesBlock>, 'theme'>;
+  Benefits: Omit<ComponentProps<typeof BenefitsBlock>, 'theme'>;
+  SocialProof: Omit<ComponentProps<typeof SocialProofBlock>, 'theme'>;
+  Pricing: Omit<ComponentProps<typeof PricingBlock>, 'theme'>;
+  Countdown: Omit<ComponentProps<typeof LegacyCountdownBlock>, 'theme'> & {
+    deadline?: string;
+    label?: string;
+  };
+  FAQ: Omit<ComponentProps<typeof FAQBlock>, 'theme'>;
+  ImageGallery: Omit<ComponentProps<typeof ImageGalleryBlock>, 'theme'>;
+  Guarantee: Omit<ComponentProps<typeof GuaranteeBlock>, 'theme'>;
+  CTASection: Omit<ComponentProps<typeof CTASectionBlock>, 'theme'>;
+  Footer: Omit<ComponentProps<typeof FooterBlock>, 'theme'>;
+  Form: Omit<ComponentProps<typeof FormBlock>, 'theme' | 'pageId' | 'pageSlug' | 'onSubmit'>;
+  Popup: Omit<ComponentProps<typeof PopupBlock>, 'theme'>;
+  StickyBar: Omit<ComponentProps<typeof LegacyStickyBarBlock>, 'theme'> & {
+    text?: string;
+    cta?: string;
+  };
+  UGCVideo: Omit<ComponentProps<typeof UGCVideoBlock>, 'theme' | 'pageId' | 'blockId'>;
+  PriceDeception: {
+    originalPrice?: number;
+    currentPrice?: number;
+    bonuses?: string[];
+  };
+};
 
 // Countdown with live ticking, defaults to 24h from now when no deadline provided
 function UrgencyCountdownBlock({ deadline, label }: { deadline: string; label?: string }) {
@@ -148,44 +179,55 @@ interface BlockRendererProps {
 }
 
 export function BlockRenderer({ block, theme, pageId, pageSlug, onLeadSubmit }: BlockRendererProps) {
-  const type = block.type as string;
-  const baseDefaults = defaultBlockProps[type as BlockType] as Record<string, unknown> | undefined;
-  const props = {
+  const type = block.type as BlockRendererType;
+  const baseDefaults = (type in defaultBlockProps
+    ? (defaultBlockProps[type as BlockType] as BlockPropsMap[BlockType])
+    : undefined);
+
+  const props: Record<string, unknown> = {
     ...(baseDefaults || {}),
-    ...(block.props as Record<string, unknown> | undefined),
-  } as Record<string, unknown>;
+    ...(block.props || {}),
+  };
 
   // Normalize and render based on block type (supporting new conversion-focused blocks)
   switch (type) {
     case 'Hero':
-      return <HeroBlock {...(props as any)} theme={theme} />;
+      return <HeroBlock {...(props as BlockPropsMap['Hero'])} theme={theme} />;
     case 'Features':
-      return <FeaturesBlock {...(props as any)} theme={theme} />;
+      return <FeaturesBlock {...(props as BlockPropsMap['Features'])} theme={theme} />;
     case 'Benefits':
-      return <BenefitsBlock {...(props as any)} theme={theme} />;
+      return <BenefitsBlock {...(props as BlockPropsMap['Benefits'])} theme={theme} />;
     case 'SocialProof':
-      return <SocialProofBlock {...(props as any)} theme={theme} />;
+      return <SocialProofBlock {...(props as BlockPropsMap['SocialProof'])} theme={theme} />;
     case 'Pricing':
-      return <PricingBlock {...(props as any)} theme={theme} />;
+      return <PricingBlock {...(props as BlockPropsMap['Pricing'])} theme={theme} />;
     case 'Countdown':
     case 'CountdownBlock': {
       const deadline = (props.deadline as string) || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       return <UrgencyCountdownBlock deadline={deadline} label={props.label as string | undefined} />;
     }
     case 'FAQ':
-      return <FAQBlock {...(props as any)} theme={theme} />;
+      return <FAQBlock {...(props as BlockPropsMap['FAQ'])} theme={theme} />;
     case 'ImageGallery':
-      return <ImageGalleryBlock {...(props as any)} theme={theme} />;
+      return <ImageGalleryBlock {...(props as BlockPropsMap['ImageGallery'])} theme={theme} />;
     case 'Guarantee':
-      return <GuaranteeBlock {...(props as any)} theme={theme} />;
+      return <GuaranteeBlock {...(props as BlockPropsMap['Guarantee'])} theme={theme} />;
     case 'CTASection':
-      return <CTASectionBlock {...(props as any)} theme={theme} />;
+      return <CTASectionBlock {...(props as BlockPropsMap['CTASection'])} theme={theme} />;
     case 'Footer':
-      return <FooterBlock {...(props as any)} theme={theme} />;
+      return <FooterBlock {...(props as BlockPropsMap['Footer'])} theme={theme} />;
     case 'Form':
-      return <FormBlock {...(props as any)} theme={theme} pageId={pageId} pageSlug={pageSlug} onSubmit={onLeadSubmit} />;
+      return (
+        <FormBlock
+          {...(props as BlockPropsMap['Form'])}
+          theme={theme}
+          pageId={pageId}
+          pageSlug={pageSlug}
+          onSubmit={onLeadSubmit}
+        />
+      );
     case 'Popup':
-      return <PopupBlock {...(props as any)} theme={theme} />;
+      return <PopupBlock {...(props as BlockPropsMap['Popup'])} theme={theme} />;
     case 'StickyBar': {
       // Prefer provided text, otherwise cycle fake notifications
       return <FakeStickyBar text={props.text as string | undefined} cta={props.cta as string | undefined} />;
@@ -193,7 +235,7 @@ export function BlockRenderer({ block, theme, pageId, pageSlug, onLeadSubmit }: 
     case 'UGCVideo': {
       return (
         <UGCVideoBlock
-          {...(props as any)}
+          {...(props as BlockPropsMap['UGCVideo'])}
           theme={theme}
           pageId={pageId}
           blockId={block.id}

@@ -15,6 +15,39 @@ import { SYSTEM_PROMPT } from './prompt.js';
 import { enhanceWithDarkPatterns } from './manipulativeEnhancer.js';
 import { generateConversionPage } from './conversionEngine.js';
 
+type GenerateConversionOptions = NonNullable<Parameters<typeof generateConversionPage>[1]>;
+
+type GeneratedMeta = {
+  title?: unknown;
+  slug?: unknown;
+  description?: unknown;
+};
+
+type GeneratedTheme = {
+  mode?: unknown;
+  primaryColor?: unknown;
+  font?: unknown;
+  fontFamily?: unknown;
+  buttonStyle?: unknown;
+};
+
+type GeneratedBlock = {
+  type?: unknown;
+  props?: unknown;
+};
+
+type GeneratedPage = Record<string, unknown> & {
+  meta?: GeneratedMeta;
+  theme?: GeneratedTheme;
+  blocks?: GeneratedBlock[];
+  heroImagePrompt?: unknown;
+};
+
+type SanitizedBlock = {
+  type: string;
+  props: Record<string, unknown>;
+};
+
 // Rate limiting (in-memory - use Redis for production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW_MS = 60000;
@@ -82,7 +115,10 @@ interface RequestData {
   reference?: { type: 'url' | 'html'; value: string };
 }
 
-function tryParseJsonObject(raw: string): any | null {
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+function tryParseJsonObject(raw: string): unknown | null {
   try {
     return JSON.parse(raw);
   } catch (firstErr) {
@@ -299,14 +335,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(502).json({ error: 'Empty response from LLM', code: 'LLM_EMPTY' });
     }
 
-    let generatedContent: any;
-    generatedContent = tryParseJsonObject(llmContent);
-    if (!generatedContent) {
+    const parsedContent = tryParseJsonObject(llmContent);
+    if (!isRecord(parsedContent)) {
       console.error('LLM JSON parse error. Raw content length:', llmContent.length);
       return res.status(500).json({ error: 'Failed to parse LLM response as JSON', code: 'LLM_PARSE_ERROR' });
     }
-    
-  const { heroImagePrompt, ...pageJson } = generatedContent;
+
+    const { heroImagePrompt, ...rest } = parsedContent;
+    const pageJson: GeneratedPage = { ...rest };
+    const heroImagePromptValue = typeof heroImagePrompt === 'string' ? heroImagePrompt : undefined;
 
     // Apply dark-pattern enhancer to enforce urgency/scarcity stacking
     try {
@@ -316,15 +353,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Normalize theme to match frontend schema (prevents "Invalid response from API")
-    const t = (pageJson as any).theme ?? {};
-    const fontFamily = typeof t.fontFamily === 'string' ? t.fontFamily.toLowerCase() : '';
-    (pageJson as any).theme = {
-      mode: t.mode === 'dark' ? 'dark' : 'light',
-      primaryColor: typeof t.primaryColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(t.primaryColor) ? t.primaryColor : '#7c3aed',
-      font: t.font === 'inter' || t.font === 'outfit' || t.font === 'system'
-        ? t.font
-        : (fontFamily.includes('outfit') ? 'outfit' : (fontFamily.includes('inter') ? 'inter' : 'system')),
-      buttonStyle: t.buttonStyle === 'outline' ? 'outline' : 'solid',
+    const themeCandidate = isRecord(pageJson.theme) ? pageJson.theme : {};
+    const fontFamily = typeof themeCandidate.fontFamily === 'string' ? themeCandidate.fontFamily.toLowerCase() : '';
+    pageJson.theme = {
+      mode: themeCandidate.mode === 'dark' ? 'dark' : 'light',
+      primaryColor:
+        typeof themeCandidate.primaryColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(themeCandidate.primaryColor)
+          ? themeCandidate.primaryColor
+          : '#7c3aed',
+      font:
+        themeCandidate.font === 'inter' || themeCandidate.font === 'outfit' || themeCandidate.font === 'system'
+          ? themeCandidate.font
+          : fontFamily.includes('outfit')
+            ? 'outfit'
+            : fontFamily.includes('inter')
+              ? 'inter'
+              : 'system',
+      buttonStyle: themeCandidate.buttonStyle === 'outline' ? 'outline' : 'solid',
     };
 
     // Sanitize meta + blocks to satisfy frontend schema
@@ -351,14 +396,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .replace(/^-+|-+$/g, '')
       .slice(0, 100) || 'landing-page';
 
-    const meta = (pageJson as any).meta ?? {};
-    (pageJson as any).meta = {
-      title: typeof meta.title === 'string' && meta.title.trim().length > 0 ? meta.title.trim().slice(0, 100) : 'Landing Page',
-      slug: slugify(typeof meta.slug === 'string' && meta.slug.trim().length > 0 ? meta.slug : (meta.title || 'landing-page')),
+    const meta = isRecord(pageJson.meta) ? pageJson.meta : {};
+    pageJson.meta = {
+      title:
+        typeof meta.title === 'string' && meta.title.trim().length > 0
+          ? meta.title.trim().slice(0, 100)
+          : 'Landing Page',
+      slug: slugify(
+        typeof meta.slug === 'string' && meta.slug.trim().length > 0
+          ? meta.slug
+          : typeof meta.title === 'string'
+            ? meta.title
+            : 'landing-page'
+      ),
       description: typeof meta.description === 'string' ? meta.description.slice(0, 300) : undefined,
     };
 
-    const normalizeType = (type: any): string => {
+    const normalizeType = (type: unknown): string => {
       if (typeof type !== 'string') return '';
       // Map common aliases the LLM sometimes emits
       const trimmed = type.trim();
@@ -369,24 +423,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return trimmed;
     };
 
-    const rawBlocks = Array.isArray((pageJson as any).blocks) ? (pageJson as any).blocks : [];
-    const sanitizedBlocks = rawBlocks
-      .map((b: any) => ({
-        ...b,
-        type: normalizeType(b?.type),
-      }))
-      .filter((b: any) => b && allowedBlockTypes.has(b.type))
-      .map((b: any) => ({
-        type: b.type,
-        props: typeof b.props === 'object' && b.props !== null ? b.props : {},
-      }))
+    const rawBlocks = Array.isArray(pageJson.blocks) ? pageJson.blocks : [];
+    const sanitizedBlocks: SanitizedBlock[] = rawBlocks
+      .map((block): SanitizedBlock | null => {
+        if (!isRecord(block)) return null;
+        const normalizedType = normalizeType(block.type);
+        if (!allowedBlockTypes.has(normalizedType)) return null;
+        const props = isRecord(block.props) ? block.props : {};
+        return { type: normalizedType, props };
+      })
+      .filter((b): b is SanitizedBlock => Boolean(b))
       .slice(0, 20);
 
     if (sanitizedBlocks.length === 0) {
       return res.status(502).json({ error: 'Generation failed: no valid blocks returned', code: 'NO_BLOCKS' });
     }
 
-    (pageJson as any).blocks = sanitizedBlocks;
+    pageJson.blocks = sanitizedBlocks;
 
     // Step 3: Generate hero image with Flux (Replicate) if prompt is provided
     if (heroImagePrompt) {
@@ -445,10 +498,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const prediction = await createPrediction();
           const result = await pollPrediction(prediction.urls.get);
           const imageUrl = Array.isArray(result.output) ? result.output[0] : null;
-          if (imageUrl && pageJson.blocks) {
-            const heroBlock = pageJson.blocks.find((b: { type: string }) => b.type === 'Hero');
+          if (imageUrl) {
+            const heroBlock = sanitizedBlocks.find((b) => b.type === 'Hero');
             if (heroBlock) {
-              heroBlock.props.imageUrl = imageUrl;
+              heroBlock.props = { ...heroBlock.props, imageUrl };
             }
           }
         } catch (err) {
@@ -473,29 +526,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 // Minimal POST handler for app/edge style usage (does not use Vercel res helpers)
 export async function POST(req: Request) {
   try {
-    const { prompt, reference, niche, enhance = true } = await req.json();
+    const body = await req.json();
+    if (!isRecord(body)) {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-    if (!prompt) {
+    const { prompt, reference, niche, enhance = true } = body;
+
+    if (typeof prompt !== 'string' || prompt.trim().length === 0) {
       return new Response(JSON.stringify({ error: 'Prompt is required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
+    const referencePayload: GenerateConversionOptions['reference'] =
+      isRecord(reference)
+      && (reference.type === 'url' || reference.type === 'html')
+      && typeof reference.value === 'string'
+        ? { type: reference.type, value: reference.value }
+        : undefined;
+
+    const nicheValue: GenerateConversionOptions['niche'] =
+      typeof niche === 'string'
+        ? (niche as GenerateConversionOptions['niche'])
+        : undefined;
+    const enhanceFlag = typeof enhance === 'boolean' ? enhance : true;
+
     const pageData = await generateConversionPage(prompt, {
-      niche,
-      reference,
-      enhance,
+      niche: nicheValue,
+      reference: referencePayload,
+      enhance: enhanceFlag,
     });
 
     return new Response(JSON.stringify(pageData), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Generate error:', error);
     return new Response(
-      JSON.stringify({ error: error?.message || 'Internal Server Error' }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal Server Error' }),
       {
         status: 500,
         headers: { 'Content-Type': 'application/json' },

@@ -45,11 +45,13 @@ export const DARK_PATTERN_PRESETS = [
 ];
 
 // Helper to build API request body
+export type GenerationReference = { type: 'url' | 'html' | 'image'; value: string };
+
 export function buildGenerationRequest(
   prompt: string,
   options?: {
     niche?: string;
-    reference?: any;
+    reference?: GenerationReference;
     enhance?: boolean;
     preset?: string;
   }

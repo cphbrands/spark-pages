@@ -37,10 +37,10 @@ export default function Preview() {
         title: 'Page Published!',
         description: `Your page is now live at /p/${page.meta.slug}`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to publish',
         variant: 'destructive',
       });
     }

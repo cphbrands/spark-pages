@@ -1,6 +1,11 @@
 import { runLLM } from './llm.js';
 import { enhanceWithDarkPatterns } from './manipulativeEnhancer.js';
 
+type ConversionPage = Record<string, unknown>;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 // Niche-specific psychological triggers (aligned with client presets)
 const NICHE_TRIGGERS = {
   'weight-loss': {
@@ -198,12 +203,18 @@ export async function generateConversionPage(
     maxTokens: 6000,
   });
 
-  let pageData: any;
+  let pageDataRaw: unknown;
   try {
-    pageData = JSON.parse(llmContent);
+    pageDataRaw = JSON.parse(llmContent);
   } catch (error) {
     throw new Error('Failed to parse LLM response as JSON');
   }
+
+  if (!isRecord(pageDataRaw)) {
+    throw new Error('LLM response is not a JSON object');
+  }
+
+  let pageData: ConversionPage = pageDataRaw;
 
   // Apply dark patterns
   if (enhance) {
@@ -221,7 +232,7 @@ export async function generateConversionPage(
 
 // Refine with conversion focus
 export async function refineConversionPage(
-  existingPage: any,
+  existingPage: ConversionPage,
   refinementPrompt: string,
   options?: {
     niche?: keyof typeof NICHE_TRIGGERS;
@@ -246,12 +257,18 @@ Return the updated JSON.`;
     maxTokens: 6000,
   });
 
-  let refinedData: any;
+  let refinedDataRaw: unknown;
   try {
-    refinedData = JSON.parse(llmContent);
+    refinedDataRaw = JSON.parse(llmContent);
   } catch (error) {
     throw new Error('Failed to parse refined LLM response');
   }
+
+  if (!isRecord(refinedDataRaw)) {
+    throw new Error('Refined LLM response is not a JSON object');
+  }
+
+  let refinedData: ConversionPage = refinedDataRaw;
 
   if (enhance) {
     refinedData = enhanceWithDarkPatterns(refinedData);

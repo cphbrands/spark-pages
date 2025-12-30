@@ -1,6 +1,11 @@
-export function enhanceWithDarkPatterns(pageData: any): any {
+import { BlockType } from '@/lib/schemas';
+
+type Block = { type: BlockType | 'CountdownBlock'; props: Record<string, unknown> };
+type PageData = { blocks?: Block[] } & Record<string, unknown>;
+
+export function enhanceWithDarkPatterns(pageData: PageData): PageData {
   // Add fake countdown if not present
-  const hasCountdown = pageData.blocks?.some((b: any) => b.type === 'CountdownBlock');
+  const hasCountdown = pageData.blocks?.some((b) => b.type === 'CountdownBlock');
   if (!hasCountdown && Array.isArray(pageData.blocks)) {
     pageData.blocks.splice(1, 0, {
       type: 'CountdownBlock',
@@ -24,25 +29,40 @@ export function enhanceWithDarkPatterns(pageData: any): any {
 
   // Enhance testimonials with numbers
   const socialProofBlock = pageData.blocks?.find(
-    (b: any) => b.type === 'SocialProof' || b.props?.testimonials,
+    (b) => b.type === 'SocialProof' || (b.props && 'testimonials' in b.props),
   );
 
   if (socialProofBlock) {
-    socialProofBlock.props.testimonials =
-      socialProofBlock.props.testimonials?.map((t: any) => ({
+    const testimonials = Array.isArray((socialProofBlock.props as Record<string, unknown>).testimonials)
+      ? (socialProofBlock.props as { testimonials: unknown[] }).testimonials
+      : [];
+
+    (socialProofBlock.props as Record<string, unknown>).testimonials = testimonials
+      .filter((t): t is { quote: string } & Record<string, unknown> => typeof t === 'object' && t !== null)
+      .map((t) => ({
         ...t,
-        quote: addNumbersToTestimonial(t.quote),
-      })) || [];
+        quote: addNumbersToTestimonial(typeof (t as { quote?: unknown }).quote === 'string' ? (t as { quote: string }).quote : ''),
+      }));
   }
 
   // Add price deception if Pricing block exists
-  const pricingBlock = pageData.blocks?.find((b: any) => b.type === 'Pricing');
-  if (pricingBlock && pricingBlock.props?.tiers) {
-    pricingBlock.props.tiers = pricingBlock.props.tiers.map((tier: any) => ({
-      ...tier,
-      originalPrice: tier.originalPrice || tier.currentPrice * 4,
-      scarcityText: tier.scarcityText || 'Only 12 left at this price',
-    }));
+  const pricingBlock = pageData.blocks?.find((b) => b.type === 'Pricing');
+  if (pricingBlock && (pricingBlock.props as Record<string, unknown>)?.tiers) {
+    const tiers = (pricingBlock.props as { tiers: unknown }).tiers;
+    if (Array.isArray(tiers)) {
+      (pricingBlock.props as Record<string, unknown>).tiers = tiers
+        .filter((tier): tier is { originalPrice?: number; currentPrice?: number; scarcityText?: string } & Record<string, unknown> => typeof tier === 'object' && tier !== null)
+        .map((tier) => ({
+          ...tier,
+          originalPrice:
+            typeof tier.originalPrice === 'number'
+              ? tier.originalPrice
+              : typeof tier.currentPrice === 'number'
+                ? tier.currentPrice * 4
+                : undefined,
+          scarcityText: typeof tier.scarcityText === 'string' ? tier.scarcityText : 'Only 12 left at this price',
+        }));
+    }
   }
 
   return pageData;

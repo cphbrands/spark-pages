@@ -247,6 +247,10 @@ interface BuilderState {
   pages: Page[];
   templates: Template[];
   leads: Lead[];
+
+  // History
+  undoStack: Page[][];
+  redoStack: Page[][];
   
   // Current editor state
   currentPageId: string | null;
@@ -274,6 +278,10 @@ interface BuilderState {
   deleteBlock: (pageId: string, blockId: string) => void;
   duplicateBlock: (pageId: string, blockId: string) => void;
   moveBlock: (pageId: string, blockId: string, direction: 'up' | 'down') => void;
+
+  // History actions
+  undo: () => void;
+  redo: () => void;
   
   // Lead actions
   addLead: (lead: Omit<Lead, 'id' | 'createdAt'>) => void;
@@ -286,13 +294,44 @@ interface BuilderState {
 
 export const useBuilderStore = create<BuilderState>()(
   persist(
-    (set, get) => ({
-      pages: [],
-      templates: generateTemplates(),
-      leads: [],
-      currentPageId: null,
-      selectedBlockId: null,
-      previewMode: 'desktop',
+    (set, get) => {
+      const captureHistory = () => {
+        const { pages, undoStack } = get();
+        const snapshot = JSON.parse(JSON.stringify(pages)) as Page[];
+        set({ undoStack: [...undoStack, snapshot].slice(-20), redoStack: [] });
+      };
+
+      return {
+        pages: [],
+        templates: generateTemplates(),
+        leads: [],
+        undoStack: [],
+        redoStack: [],
+        currentPageId: null,
+        selectedBlockId: null,
+        previewMode: 'desktop',
+
+      undo: () => {
+        const { undoStack, redoStack, pages } = get();
+        if (undoStack.length === 0) return;
+        const prev = undoStack[undoStack.length - 1];
+        set({
+          pages: prev,
+          undoStack: undoStack.slice(0, -1),
+          redoStack: [...redoStack, pages].slice(-20),
+        });
+      },
+
+      redo: () => {
+        const { undoStack, redoStack, pages } = get();
+        if (redoStack.length === 0) return;
+        const next = redoStack[redoStack.length - 1];
+        set({
+          pages: next,
+          redoStack: redoStack.slice(0, -1),
+          undoStack: [...undoStack, pages].slice(-20),
+        });
+      },
       
       setCurrentPage: (id) => set({ currentPageId: id, selectedBlockId: null }),
       setSelectedBlock: (id) => set({ selectedBlockId: id }),
@@ -302,6 +341,8 @@ export const useBuilderStore = create<BuilderState>()(
         const template = get().templates.find(t => t.id === templateId);
         if (!template) throw new Error('Template not found');
         
+        captureHistory();
+
         const now = new Date().toISOString();
         const newPage: Page = {
           id: uuidv4(),
@@ -325,6 +366,7 @@ export const useBuilderStore = create<BuilderState>()(
       },
       
       createBlankPage: () => {
+        captureHistory();
         const now = new Date().toISOString();
         const newPage: Page = {
           id: uuidv4(),
@@ -350,6 +392,7 @@ export const useBuilderStore = create<BuilderState>()(
       },
       
       updatePage: (id, updates) => {
+        captureHistory();
         set(state => ({
           pages: state.pages.map(page =>
             page.id === id
@@ -360,6 +403,7 @@ export const useBuilderStore = create<BuilderState>()(
       },
       
       deletePage: (id) => {
+        captureHistory();
         set(state => ({
           pages: state.pages.filter(page => page.id !== id),
           currentPageId: state.currentPageId === id ? null : state.currentPageId,
@@ -369,6 +413,7 @@ export const useBuilderStore = create<BuilderState>()(
       duplicatePage: (id) => {
         const page = get().pages.find(p => p.id === id);
         if (!page) throw new Error('Page not found');
+        captureHistory();
         
         const now = new Date().toISOString();
         const newPage: Page = {
@@ -395,6 +440,7 @@ export const useBuilderStore = create<BuilderState>()(
       publishPage: (id) => {
         const page = get().pages.find(p => p.id === id);
         if (!page) return;
+        captureHistory();
         
         // Check for slug conflicts
         const conflictingPage = get().pages.find(
@@ -415,6 +461,7 @@ export const useBuilderStore = create<BuilderState>()(
       },
       
       unpublishPage: (id) => {
+        captureHistory();
         set(state => ({
           pages: state.pages.map(page =>
             page.id === id
@@ -429,6 +476,7 @@ export const useBuilderStore = create<BuilderState>()(
       },
       
       addBlock: (pageId, type, afterBlockId) => {
+        captureHistory();
         const newBlock: Block = {
           id: uuidv4(),
           type,
@@ -462,6 +510,7 @@ export const useBuilderStore = create<BuilderState>()(
       },
       
       updateBlock: (pageId, blockId, props) => {
+        captureHistory();
         set(state => ({
           pages: state.pages.map(page => {
             if (page.id !== pageId) return page;
@@ -479,6 +528,7 @@ export const useBuilderStore = create<BuilderState>()(
       },
       
       deleteBlock: (pageId, blockId) => {
+        captureHistory();
         set(state => ({
           pages: state.pages.map(page => {
             if (page.id !== pageId) return page;
@@ -493,6 +543,7 @@ export const useBuilderStore = create<BuilderState>()(
       },
       
       duplicateBlock: (pageId, blockId) => {
+        captureHistory();
         set(state => ({
           pages: state.pages.map(page => {
             if (page.id !== pageId) return page;
@@ -523,6 +574,7 @@ export const useBuilderStore = create<BuilderState>()(
       },
       
       moveBlock: (pageId, blockId, direction) => {
+        captureHistory();
         set(state => ({
           pages: state.pages.map(page => {
             if (page.id !== pageId) return page;
@@ -586,7 +638,8 @@ export const useBuilderStore = create<BuilderState>()(
           ),
         }));
       },
-    }),
+    };
+    },
     {
       name: 'landing-page-builder',
     }

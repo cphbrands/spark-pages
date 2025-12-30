@@ -23,10 +23,11 @@ async function ensureLoaded() {
     const data = await fs.readFile(STORE_PATH, 'utf-8');
     const parsed = JSON.parse(data) as Record<string, JobRecord>;
     Object.entries(parsed).forEach(([k, v]) => cache!.set(k, v));
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Ignore missing file; create on first write
-    if (err?.code !== 'ENOENT') {
-      console.warn('jobStore: failed to load store', err?.message || err);
+    if (err instanceof Error && (err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      const message = (err as NodeJS.ErrnoException).message || 'Unknown error';
+      console.warn('jobStore: failed to load store', message);
     }
   } finally {
     isLoaded = true;

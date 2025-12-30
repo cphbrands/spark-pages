@@ -366,13 +366,19 @@ User's refinement request: ${prompt}`;
       maxTokens: 6000,
     });
 
-    let refinedPage: any;
+    let refinedPageRaw: unknown;
     try {
-      refinedPage = JSON.parse(llmContent);
+      refinedPageRaw = JSON.parse(llmContent);
     } catch (error) {
       console.error('LLM JSON parse error:', error, llmContent);
       return res.status(500).json({ error: 'Failed to parse LLM response as JSON' });
     }
+
+    if (typeof refinedPageRaw !== 'object' || refinedPageRaw === null) {
+      return res.status(500).json({ error: 'LLM returned non-object JSON' });
+    }
+
+    const refinedPage = refinedPageRaw as Record<string, unknown>;
 
     try {
       enhanceWithDarkPatterns(refinedPage);
@@ -381,15 +387,23 @@ User's refinement request: ${prompt}`;
     }
     
     // Normalize theme
-    const t = refinedPage.theme ?? {};
-    const fontFamily = typeof t.fontFamily === 'string' ? t.fontFamily.toLowerCase() : '';
+    const themeCandidate = typeof refinedPage.theme === 'object' && refinedPage.theme !== null ? refinedPage.theme as Record<string, unknown> : {};
+    const fontFamily = typeof themeCandidate.fontFamily === 'string' ? themeCandidate.fontFamily.toLowerCase() : '';
     refinedPage.theme = {
-      mode: t.mode === 'dark' ? 'dark' : 'light',
-      primaryColor: typeof t.primaryColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(t.primaryColor) ? t.primaryColor : currentPage.theme.primaryColor,
-      font: t.font === 'inter' || t.font === 'outfit' || t.font === 'system'
-        ? t.font
-        : (fontFamily.includes('outfit') ? 'outfit' : (fontFamily.includes('inter') ? 'inter' : currentPage.theme.font)),
-      buttonStyle: t.buttonStyle === 'outline' ? 'outline' : 'solid',
+      mode: themeCandidate.mode === 'dark' ? 'dark' : 'light',
+      primaryColor:
+        typeof themeCandidate.primaryColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(themeCandidate.primaryColor)
+          ? themeCandidate.primaryColor
+          : currentPage.theme.primaryColor,
+      font:
+        themeCandidate.font === 'inter' || themeCandidate.font === 'outfit' || themeCandidate.font === 'system'
+          ? themeCandidate.font
+          : fontFamily.includes('outfit')
+            ? 'outfit'
+            : fontFamily.includes('inter')
+              ? 'inter'
+              : currentPage.theme.font,
+      buttonStyle: themeCandidate.buttonStyle === 'outline' ? 'outline' : 'solid',
     };
     
     console.log('Refinement complete', { hadResearch: !!research, hadImage: !!generatedImage });

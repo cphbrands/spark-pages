@@ -1,5 +1,20 @@
 import { runLLM } from './llm';
 
+type IncomingBody = {
+  prompt?: unknown;
+  count?: unknown;
+};
+
+type Testimonial = {
+  name: string;
+  text: string;
+  role?: string;
+  avatarUrl?: string;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 // Specialized system prompt for generating testimonials
 const UGC_SYSTEM_PROMPT = `You are an expert at generating diverse and persuasive customer testimonials.
 Generate a list of testimonials based on the user's request.
@@ -15,7 +30,9 @@ Do not include any other text, markdown, or explanations.`;
 
 export async function POST(req: Request) {
   try {
-    const { prompt, count = 3 } = await req.json();
+    const body = (await req.json()) as IncomingBody;
+    const prompt = typeof body.prompt === 'string' ? body.prompt : '';
+    const rawCount = body.count;
 
     if (!prompt) {
       return new Response(JSON.stringify({ error: 'Prompt is required' }), {
@@ -24,7 +41,8 @@ export async function POST(req: Request) {
       });
     }
 
-    const safeCount = Math.max(1, Math.min(Number(count) || 3, 10));
+    const countNumber = typeof rawCount === 'number' ? rawCount : Number(rawCount);
+    const safeCount = Math.max(1, Math.min(Number.isFinite(countNumber) ? countNumber : 3, 10));
 
     // Build the user prompt for the LLM
     const userPrompt = `Generate ${safeCount} testimonials for: ${prompt}`;
@@ -37,7 +55,7 @@ export async function POST(req: Request) {
     });
 
     // Parse and return the testimonials
-    let testimonials: any[] | undefined;
+    let testimonials: unknown;
     try {
       testimonials = JSON.parse(llmContent);
     } catch (primaryError) {
@@ -70,14 +88,24 @@ export async function POST(req: Request) {
       });
     }
 
+    const normalizedTestimonials: Testimonial[] = testimonials
+      .filter(isRecord)
+      .map((t) => ({
+        name: typeof t.name === 'string' ? t.name : 'Customer',
+        text: typeof t.text === 'string' ? t.text : '',
+        role: typeof t.role === 'string' ? t.role : undefined,
+        avatarUrl: typeof t.avatarUrl === 'string' ? t.avatarUrl : undefined,
+      }))
+      .filter((t) => t.text.length > 0);
+
     // Add metadata to identify as AI-generated
     const responseData = {
-      testimonials,
+      testimonials: normalizedTestimonials,
       metadata: {
         generatedAt: new Date().toISOString(),
         aiGenerated: true,
         disclosureRequired: true,
-        count: testimonials.length
+        count: normalizedTestimonials.length
       }
     };
 
@@ -86,9 +114,9 @@ export async function POST(req: Request) {
       headers: { 'Content-Type': 'application/json' }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('UGC Generation error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Internal error' }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Internal error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

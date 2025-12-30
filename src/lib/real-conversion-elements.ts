@@ -4,7 +4,7 @@
  * (e.g., LLM-generated content or server-rendered blocks).
  */
 
-export type ConversionTemplate = (...args: any[]) => string;
+export type ConversionTemplate = (...args: unknown[]) => string;
 
 export const REAL_CONVERSION_ELEMENTS = {
   // 1. THE "SCARCITY STACK" (Real marketers use 3+ scarcity elements)

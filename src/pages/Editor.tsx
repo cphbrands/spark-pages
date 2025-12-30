@@ -17,6 +17,8 @@ import {
   Trash2,
   Settings,
   Palette,
+  RotateCcw,
+  RotateCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,8 +43,8 @@ import { PageRenderer } from '@/components/PageRenderer';
 import { ThemeSettings } from '@/components/ThemeSettings';
 import { RefinePrompt } from '@/components/RefinePrompt';
 import { PsychologyBooster } from '@/components/PsychologyBooster';
-import { BlockType, defaultBlockProps, BlockPropsSchemas } from '@/lib/schemas';
-import { AllowedBlockTypes } from '@/lib/api-schemas';
+import { BlockType, defaultBlockProps, BlockPropsSchemas, type Page, type Theme } from '@/lib/schemas';
+import { AllowedBlockTypes, type GenerateResponse } from '@/lib/api-schemas';
 import { sanitizeGeneratedBlocks } from '@/lib/block-sanitizer';
 import { savePage, loadPage } from '@/lib/page-service';
 import { cn } from '@/lib/utils';
@@ -69,6 +71,42 @@ const blockTypeLabels: Record<BlockType, string> = {
   UGCVideo: 'UGC Video',
 };
 
+const allowedBlockTypesSet = new Set<BlockType>(AllowedBlockTypes as readonly BlockType[]);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const extractNestedObject = (value: unknown, key: 'meta' | 'theme'): Record<string, unknown> | undefined => {
+  if (!isRecord(value)) return undefined;
+  const direct = value[key];
+  if (isRecord(direct)) return direct;
+  const page = value as { page?: unknown };
+  if (isRecord(page.page) && isRecord(page.page[key])) {
+    return page.page[key];
+  }
+  return undefined;
+};
+
+const normalizeBlocks = (blocks: unknown): GenerateResponse['blocks'] => {
+  if (!Array.isArray(blocks)) return [];
+  return blocks
+    .map((block) => {
+      if (!isRecord(block)) return null;
+      const type = typeof block.type === 'string' ? (block.type as BlockType) : undefined;
+      if (!type || !allowedBlockTypesSet.has(type)) return null;
+      const props = isRecord(block.props) ? block.props : {};
+      return { type, props };
+    })
+    .filter((b): b is GenerateResponse['blocks'][number] => Boolean(b));
+};
+
+const sanitizeBlocksWithIds = (blocks: GenerateResponse['blocks']) =>
+  sanitizeGeneratedBlocks(blocks).map((block) => ({
+    id: uuidv4(),
+    type: block.type,
+    props: block.props,
+  }));
+
 export default function Editor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -87,6 +125,8 @@ export default function Editor() {
     moveBlock,
     publishPage,
     unpublishPage,
+    undo,
+    redo,
   } = useBuilderStore();
 
   const page = pages.find(p => p.id === id);
@@ -124,53 +164,33 @@ export default function Editor() {
       const text = await file.text();
       const json = JSON.parse(text);
 
-      if (typeof json !== 'object' || json === null) {
-        throw new Error('Invalid JSON file');
+      const blocks = normalizeBlocks(
+        Array.isArray((json as { blocks?: unknown }).blocks)
+          ? (json as { blocks?: unknown }).blocks
+          : (json as { page?: { blocks?: unknown } }).page?.blocks
+      );
+
+      if (blocks.length === 0) {
+        throw new Error('Invalid page JSON structure: "blocks" must be an array with allowed types');
       }
 
-      // Accept blocks directly or nested under `page.blocks`
-      const blocksInput = Array.isArray((json as any).blocks)
-        ? (json as any).blocks
-        : Array.isArray((json as any).page?.blocks)
-          ? (json as any).page.blocks
-          : null;
+      const updatedBlocks = sanitizeBlocksWithIds(blocks);
 
-      if (!blocksInput) {
-        throw new Error('Invalid page JSON structure: "blocks" must be an array');
-      }
-
-      const allowedTypes = new Set<string>(AllowedBlockTypes as readonly string[]);
-      const filteredBlocks = blocksInput.filter((b: any) => b && allowedTypes.has(b.type));
-      const sanitized = sanitizeGeneratedBlocks(filteredBlocks as any);
-      const updatedBlocks = sanitized.map((b: any) => ({
-        id: uuidv4(),
-        type: b.type as BlockType,
-        props: b.props,
-      }));
-
-      const incomingMeta = typeof (json as any).meta === 'object' && (json as any).meta !== null
-        ? (json as any).meta
-        : typeof (json as any).page?.meta === 'object' && (json as any).page.meta !== null
-          ? (json as any).page.meta
-          : {};
-
-      const incomingTheme = (json as any).theme && typeof (json as any).theme === 'object'
-        ? (json as any).theme
-        : (json as any).page?.theme && typeof (json as any).page.theme === 'object'
-          ? (json as any).page.theme
-          : page.theme;
+      const incomingMeta = extractNestedObject(json, 'meta') as Partial<Page['meta']> | undefined;
+      const incomingTheme = (extractNestedObject(json, 'theme') as Theme | undefined) ?? page.theme;
 
       updatePageMeta(page.id, {
         ...page.meta,
-        ...incomingMeta,
+        ...(incomingMeta || {}),
         slug: page.meta.slug, // preserve existing slug
       });
       updatePageTheme(page.id, incomingTheme);
       useBuilderStore.getState().updatePage(page.id, { blocks: updatedBlocks });
 
       toast({ title: 'JSON imported', description: 'Page updated from file.' });
-    } catch (err: any) {
-      toast({ title: 'Import failed', description: err?.message || 'Invalid JSON file', variant: 'destructive' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Invalid JSON file';
+      toast({ title: 'Import failed', description: message, variant: 'destructive' });
     } finally {
       e.target.value = '';
     }
@@ -182,8 +202,9 @@ export default function Editor() {
     try {
       await savePage(page);
       toast({ title: 'Saved to Firestore', description: `Page ${page.id}` });
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err?.message || 'Could not save page', variant: 'destructive' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not save page';
+      toast({ title: 'Save failed', description: message, variant: 'destructive' });
     } finally {
       setIsSavingCloud(false);
     }
@@ -199,22 +220,18 @@ export default function Editor() {
         return;
       }
 
-      const allowedTypes = new Set<string>(AllowedBlockTypes as readonly string[]);
-      const filteredBlocks = (loaded.blocks || []).filter((b: any) => b && allowedTypes.has(b.type));
-      const sanitized = sanitizeGeneratedBlocks(filteredBlocks as any);
-      const updatedBlocks = sanitized.map((b: any) => ({
-        id: uuidv4(),
-        type: b.type as BlockType,
-        props: b.props,
-      }));
+      const sourceBlocks = (loaded.blocks || []).map((b) => ({ type: b.type, props: b.props }));
+      const filteredBlocks = normalizeBlocks(sourceBlocks);
+      const updatedBlocks = sanitizeBlocksWithIds(filteredBlocks);
 
       updatePageMeta(page.id, { ...page.meta, ...loaded.meta });
       updatePageTheme(page.id, loaded.theme || page.theme);
       useBuilderStore.getState().updatePage(page.id, { blocks: updatedBlocks });
 
       toast({ title: 'Loaded from Firestore', description: `Page ${page.id} refreshed.` });
-    } catch (err: any) {
-      toast({ title: 'Load failed', description: err?.message || 'Could not load page', variant: 'destructive' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not load page';
+      toast({ title: 'Load failed', description: message, variant: 'destructive' });
     } finally {
       setIsLoadingCloud(false);
     }
@@ -249,12 +266,14 @@ export default function Editor() {
         type: 'SocialProof' as BlockType,
         props: {
           heading: 'What Our Customers Say',
-          testimonials: testimonials.map((t: any) => ({
-            quote: t.text,
-            author: t.name,
-            role: t.role,
-            avatarUrl: t.avatarUrl,
-          })),
+          testimonials: testimonials
+            .filter(isRecord)
+            .map((t) => ({
+              quote: typeof t.text === 'string' ? t.text : '',
+              author: typeof t.name === 'string' ? t.name : 'Customer',
+              role: typeof t.role === 'string' ? t.role : undefined,
+              avatarUrl: typeof t.avatarUrl === 'string' ? t.avatarUrl : undefined,
+            })),
           metadata: {
             aiGenerated: true,
             disclosureText: 'AI-generated example testimonials',
@@ -266,8 +285,9 @@ export default function Editor() {
       const updatedBlocks = [...page.blocks, newBlock];
       useBuilderStore.getState().updatePage(page.id, { blocks: updatedBlocks });
       toast({ title: 'Testimonials added', description: 'AI-generated social proof inserted.' });
-    } catch (error: any) {
-      toast({ title: 'Generation failed', description: error?.message || 'Could not generate testimonials', variant: 'destructive' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Could not generate testimonials';
+      toast({ title: 'Generation failed', description: message, variant: 'destructive' });
     } finally {
       setIsGeneratingUGC(false);
     }
@@ -402,10 +422,10 @@ Tone: Urgent, exclusive, transformational.`
         title: 'Page Refined',
         description: 'Your changes have been applied.',
       });
-    } catch (error) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: 'Failed to refine page. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to refine page. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -445,23 +465,14 @@ Tone: Urgent, exclusive, transformational.`
         throw new Error(text || `Generation failed: ${response.statusText}`);
       }
 
-      const pageData = await response.json();
+      const pageData = (await response.json()) as Partial<GenerateResponse>;
 
       if (!page) return;
 
       // Add IDs to blocks and update current page
-      const allowedTypes = new Set<string>(AllowedBlockTypes as readonly string[]);
       const rawBlocks = Array.isArray(pageData.blocks) ? pageData.blocks : [];
-      const filteredBlocks = rawBlocks.filter((b: any) => b && allowedTypes.has(b.type));
-      const sanitized = sanitizeGeneratedBlocks(
-        filteredBlocks as any
-      );
-
-      const updatedBlocks = sanitized.map((b: any) => ({
-        id: uuidv4(),
-        type: b.type as BlockType,
-        props: b.props,
-      }));
+      const normalizedBlocks = normalizeBlocks(rawBlocks);
+      const updatedBlocks = sanitizeBlocksWithIds(normalizedBlocks);
 
       updatePageMeta(page.id, {
         ...page.meta,
@@ -478,11 +489,11 @@ Tone: Urgent, exclusive, transformational.`
         title: 'Page Generated',
         description: 'Applied new conversion-focused content.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Generation error:', error);
       toast({
         title: 'Generation failed',
-        description: error?.message || 'Please try again.',
+        description: error instanceof Error ? error.message : 'Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -505,10 +516,10 @@ Tone: Urgent, exclusive, transformational.`
         title: 'Page Published',
         description: `Your page is now live at /p/${page.meta.slug}`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to publish',
         variant: 'destructive',
       });
     }
@@ -536,9 +547,9 @@ Tone: Urgent, exclusive, transformational.`
       );
     }
 
-    const props = selectedBlock.props as Record<string, unknown>;
+  const props = selectedBlock.props as Record<string, unknown>;
     const schema = BlockPropsSchemas[selectedBlock.type];
-    const schemaShape = schema.shape as Record<string, any>;
+  const schemaShape = schema.shape as Record<string, unknown>;
 
     if (selectedBlock.type === 'UGCVideo') {
       return (
@@ -736,6 +747,22 @@ Tone: Urgent, exclusive, transformational.`
         </div>
         
         <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => undo()}
+              className="text-builder-text-muted hover:text-builder-text"
+            >
+              <RotateCcw className="w-4 h-4 mr-1" /> Undo
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => redo()}
+              className="text-builder-text-muted hover:text-builder-text"
+            >
+              <RotateCw className="w-4 h-4 mr-1" /> Redo
+            </Button>
           <div className="flex items-center bg-builder-bg rounded-lg p-1">
             <Button
               variant="ghost"
