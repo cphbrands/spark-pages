@@ -1,4 +1,4 @@
-import { runLLM } from './llm';
+import { runLLM } from '../api-lib/llm.js';
 
 type IncomingBody = {
   prompt?: unknown;

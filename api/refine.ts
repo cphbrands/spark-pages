@@ -10,8 +10,8 @@ type VercelResponse = {
 // Minimal process env typing (no Node types required)
 declare const process: { env: Record<string, string | undefined> };
 
-import { runLLM } from './llm.js';
-import { enhanceWithDarkPatterns } from './manipulativeEnhancer.js';
+import { runLLM } from '../api-lib/llm.js';
+import { enhanceWithDarkPatterns } from '../api-lib/manipulativeEnhancer.js';
 
 // Rate limiting
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();

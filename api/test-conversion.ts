@@ -1,4 +1,4 @@
-import { generateConversionPage } from './conversionEngine.js';
+import { generateConversionPage } from '../api-lib/conversionEngine.js';
 
 type GenerateOptions = NonNullable<Parameters<typeof generateConversionPage>[1]>;
 

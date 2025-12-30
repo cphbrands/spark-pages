@@ -10,10 +10,11 @@ type VercelResponse = {
 // Minimal process env typing (no Node types required)
 declare const process: { env: Record<string, string | undefined> };
 
-import { runLLM } from './llm.js';
-import { SYSTEM_PROMPT } from './prompt.js';
-import { enhanceWithDarkPatterns } from './manipulativeEnhancer.js';
-import { generateConversionPage } from './conversionEngine.js';
+import { randomUUID } from 'crypto';
+import { runLLM } from '../api-lib/llm.js';
+import { SYSTEM_PROMPT } from '../api-lib/prompt.js';
+import { enhanceWithDarkPatterns } from '../api-lib/manipulativeEnhancer.js';
+import { generateConversionPage } from '../api-lib/conversionEngine.js';
 
 type GenerateConversionOptions = NonNullable<Parameters<typeof generateConversionPage>[1]>;
 
@@ -44,9 +45,12 @@ type GeneratedPage = Record<string, unknown> & {
 };
 
 type SanitizedBlock = {
+  id: string;
   type: string;
   props: Record<string, unknown>;
 };
+
+const isUuid = (value: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(value);
 
 // Rate limiting (in-memory - use Redis for production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -347,7 +351,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Apply dark-pattern enhancer to enforce urgency/scarcity stacking
     try {
-      enhanceWithDarkPatterns(pageJson);
+      enhanceWithDarkPatterns(pageJson as any);
     } catch (err) {
       console.error('Enhancer failed, continuing with raw page JSON:', err);
     }
@@ -430,7 +434,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const normalizedType = normalizeType(block.type);
         if (!allowedBlockTypes.has(normalizedType)) return null;
         const props = isRecord(block.props) ? block.props : {};
-        return { type: normalizedType, props };
+        const idCandidate = typeof (block as { id?: unknown }).id === 'string' && isUuid((block as { id: string }).id)
+          ? (block as { id: string }).id
+          : randomUUID();
+        return { id: idCandidate, type: normalizedType, props };
       })
       .filter((b): b is SanitizedBlock => Boolean(b))
       .slice(0, 20);
@@ -440,6 +447,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     pageJson.blocks = sanitizedBlocks;
+
+    // Normalize page envelope to match frontend Page schema
+    pageJson.id = typeof (pageJson as { id?: unknown }).id === 'string' && isUuid((pageJson as { id: string }).id)
+      ? (pageJson as { id: string }).id
+      : randomUUID();
+    pageJson.status = (pageJson as { status?: unknown }).status === 'published' ? 'published' : 'draft';
+    const nowIso = new Date().toISOString();
+    pageJson.createdAt = typeof (pageJson as { createdAt?: unknown }).createdAt === 'string'
+      ? (pageJson as { createdAt: string }).createdAt
+      : nowIso;
+    pageJson.updatedAt = nowIso;
 
     // Step 3: Generate hero image with Flux (Replicate) if prompt is provided
     if (heroImagePrompt) {

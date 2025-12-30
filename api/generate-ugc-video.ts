@@ -21,10 +21,10 @@ type GenerateVideoRequest = {
 
 type JobStatus = 'processing' | 'ready' | 'error';
 
-import { generateVideoTestimonial } from './videoGenerationService.js';
-import { createJob, getJob, hasJob, updateJob } from './jobStore.firestore.js';
-import { logError, logInfo } from './logger.js';
-import { isRateLimited, remainingRequests } from './rateLimiter.js';
+import { generateVideoTestimonial } from '../api-lib/videoGenerationService.js';
+import { createJob, getJob, hasJob, updateJob } from '../api-lib/jobStore.firestore.js';
+import { logError, logInfo } from '../api-lib/logger.js';
+import { isRateLimited, remainingRequests } from '../api-lib/rateLimiter.js';
 import { URL } from 'url';
 import { randomUUID } from 'crypto';
 

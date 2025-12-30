@@ -1,4 +1,20 @@
-import { BlockType } from '@/lib/schemas';
+// Keep in sync with frontend block types. Avoid TS path aliases in serverless env.
+type BlockType =
+  | 'Hero'
+  | 'Features'
+  | 'Benefits'
+  | 'SocialProof'
+  | 'Pricing'
+  | 'Countdown'
+  | 'FAQ'
+  | 'CTASection'
+  | 'Footer'
+  | 'Form'
+  | 'Popup'
+  | 'StickyBar'
+  | 'ImageGallery'
+  | 'UGCVideo'
+  | 'Guarantee';
 
 type Block = { type: BlockType | 'CountdownBlock'; props: Record<string, unknown> };
 type PageData = { blocks?: Block[] } & Record<string, unknown>;
