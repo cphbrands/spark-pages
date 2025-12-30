@@ -16,7 +16,7 @@ Do not include any other text, markdown, or explanations.`;
 export async function POST(req: Request) {
   try {
     const { prompt, count = 3 } = await req.json();
-    
+
     if (!prompt) {
       return new Response(JSON.stringify({ error: 'Prompt is required' }), {
         status: 400,
@@ -24,22 +24,50 @@ export async function POST(req: Request) {
       });
     }
 
+    const safeCount = Math.max(1, Math.min(Number(count) || 3, 10));
+
     // Build the user prompt for the LLM
-    const userPrompt = `Generate ${count} testimonials for: ${prompt}`;
-    
+    const userPrompt = `Generate ${safeCount} testimonials for: ${prompt}`;
+
     // Call your existing LLM infrastructure
     const llmContent = await runLLM({
       systemPrompt: UGC_SYSTEM_PROMPT,
-      userPrompt: userPrompt,
-      maxTokens: 1500 // Adjust as needed
+      userPrompt,
+      maxTokens: 800 // tighter to encourage concise JSON
     });
 
     // Parse and return the testimonials
-    let testimonials;
+    let testimonials: any[] | undefined;
     try {
       testimonials = JSON.parse(llmContent);
-    } catch (error) {
-      throw new Error('LLM returned invalid JSON');
+    } catch (primaryError) {
+      // Attempt to recover by extracting first JSON array
+      const match = llmContent.match(/\[[\s\S]*\]/);
+      if (match) {
+        try {
+          testimonials = JSON.parse(match[0]);
+        } catch (secondaryError) {
+          console.error('UGC JSON recovery failed', secondaryError);
+        }
+      }
+
+      if (!testimonials) {
+        console.error('UGC invalid JSON payload', llmContent);
+        return new Response(
+          JSON.stringify({ error: 'LLM returned invalid JSON', detail: 'Could not parse testimonials.' }),
+          {
+            status: 502,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+      }
+    }
+
+    if (!Array.isArray(testimonials)) {
+      return new Response(JSON.stringify({ error: 'LLM response was not an array' }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     // Add metadata to identify as AI-generated
@@ -57,10 +85,10 @@ export async function POST(req: Request) {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
-    
+
   } catch (error: any) {
     console.error('UGC Generation error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error.message || 'Internal error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
