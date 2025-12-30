@@ -444,7 +444,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .filter((b): b is SanitizedBlock => Boolean(b))
       .slice(0, 20);
 
-    const schemaAlignedBlocks = sanitizeToFrontendSchemas(sanitizedBlocks);
+  const schemaAlignedBlocks = sanitizeToFrontendSchemas(sanitizedBlocks as Parameters<typeof sanitizeToFrontendSchemas>[0]);
 
     if (schemaAlignedBlocks.length === 0) {
       return res.status(502).json({ error: 'Generation failed: no valid blocks returned', code: 'NO_BLOCKS' });
