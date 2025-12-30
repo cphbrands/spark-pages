@@ -88,3 +88,15 @@ VITE_FIREBASE_APP_ID=
 
 3) Client init lives in `src/lib/firebase.ts` (exports `db`, `auth`, `storage`).
 4) Firestore helpers: `src/lib/page-service.ts` has simple `savePage` / `loadPage` for `pages` collection. Extend with auth/user scoping as needed.
+
+## Backend AI/video env vars
+
+Add these to your deployment environment (or `.env.local` if running the API locally):
+
+```
+OPENAI_API_KEY=
+KIE_AI_API_KEY=
+TAVILY_API_KEY=
+```
+
+These power the Tavily → OpenAI → Kie.ai video generation pipeline defined in `api/videoGenerationService.ts` and used by `api/generate-ugc-video.ts`.

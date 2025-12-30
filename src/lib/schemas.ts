@@ -172,6 +172,23 @@ export const StickyBarPropsSchema = z.object({
   countdownEndAt: z.string().optional(),
 });
 
+export const UGCVideoPropsSchema = z.object({
+  productName: z.string().max(200).optional(),
+  imageUrl: z.string().url().optional(),
+  style: z.enum(['ugc', 'cinematic']).optional(),
+  videoUrl: z.string().url().optional(),
+  thumbnailUrl: z.string().url().optional(),
+  prompt: z.string().max(8000).optional(),
+  status: z.enum(['idle', 'processing', 'ready', 'error']).optional(),
+  error: z.string().max(500).optional(),
+  metadata: z
+    .object({
+      aiGenerated: z.boolean(),
+      disclosureText: z.string().max(200).optional(),
+    })
+    .optional(),
+});
+
 // Block type enum
 export const BlockTypeSchema = z.enum([
   'Hero',
@@ -188,6 +205,7 @@ export const BlockTypeSchema = z.enum([
   'Form',
   'Popup',
   'StickyBar',
+  'UGCVideo',
 ]);
 
 export type BlockType = z.infer<typeof BlockTypeSchema>;
@@ -287,6 +305,7 @@ export const BlockPropsSchemas = {
   Form: FormPropsSchema,
   Popup: PopupPropsSchema,
   StickyBar: StickyBarPropsSchema,
+  UGCVideo: UGCVideoPropsSchema,
 } as const;
 
 // Helper to validate block props
@@ -388,5 +407,16 @@ export const defaultBlockProps: Record<BlockType, unknown> = {
     position: 'top',
     dismissible: true,
     countdown: false,
+  },
+  UGCVideo: {
+    productName: '',
+    imageUrl: '',
+    style: 'ugc',
+    status: 'idle',
+    videoUrl: '',
+    metadata: {
+      aiGenerated: false,
+      disclosureText: 'AI-generated video testimonial',
+    },
   },
 };

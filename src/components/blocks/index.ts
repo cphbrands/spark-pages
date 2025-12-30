@@ -12,3 +12,4 @@ export { FooterBlock } from './FooterBlock';
 export { FormBlock } from './FormBlock';
 export { PopupBlock } from './PopupBlock';
 export { StickyBarBlock } from './StickyBarBlock';
+export { UGCVideoBlock } from './UGCVideoBlock';

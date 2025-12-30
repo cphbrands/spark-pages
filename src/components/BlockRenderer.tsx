@@ -15,6 +15,7 @@ import {
   FormBlock,
   PopupBlock,
   StickyBarBlock as LegacyStickyBarBlock,
+  UGCVideoBlock,
 } from '@/components/blocks';
 
 // Countdown with live ticking, defaults to 24h from now when no deadline provided
@@ -188,6 +189,16 @@ export function BlockRenderer({ block, theme, pageId, pageSlug, onLeadSubmit }: 
     case 'StickyBar': {
       // Prefer provided text, otherwise cycle fake notifications
       return <FakeStickyBar text={props.text as string | undefined} cta={props.cta as string | undefined} />;
+    }
+    case 'UGCVideo': {
+      return (
+        <UGCVideoBlock
+          {...(props as any)}
+          theme={theme}
+          pageId={pageId}
+          blockId={block.id}
+        />
+      );
     }
     case 'PriceDeception': {
       const originalPrice = Number(props.originalPrice) || 997;

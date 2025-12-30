@@ -66,6 +66,7 @@ const blockTypeLabels: Record<BlockType, string> = {
   Form: 'Lead Form',
   Popup: 'Popup Modal',
   StickyBar: 'Sticky Bar',
+  UGCVideo: 'UGC Video',
 };
 
 export default function Editor() {
@@ -538,6 +539,74 @@ Tone: Urgent, exclusive, transformational.`
     const props = selectedBlock.props as Record<string, unknown>;
     const schema = BlockPropsSchemas[selectedBlock.type];
     const schemaShape = schema.shape as Record<string, any>;
+
+    if (selectedBlock.type === 'UGCVideo') {
+      return (
+        <div className="p-4 space-y-4">
+          <h3 className="font-semibold text-builder-text">UGC Video Settings</h3>
+
+          <div className="space-y-2">
+            <Label className="text-builder-text-muted">Product name</Label>
+            <Input
+              value={(props.productName as string) || ''}
+              onChange={(e) => updateBlock(page.id, selectedBlock.id, { productName: e.target.value })}
+              className="bg-builder-bg border-builder-border text-builder-text"
+              placeholder="e.g. GlowBoost Serum"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-builder-text-muted">Product image URL</Label>
+            <Input
+              type="url"
+              value={(props.imageUrl as string) || ''}
+              onChange={(e) => updateBlock(page.id, selectedBlock.id, { imageUrl: e.target.value })}
+              className="bg-builder-bg border-builder-border text-builder-text"
+              placeholder="https://..."
+            />
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const result = reader.result as string;
+                  updateBlock(page.id, selectedBlock.id, { imageUrl: result });
+                };
+                reader.readAsDataURL(file);
+              }}
+              className="bg-builder-bg border-builder-border text-builder-text"
+            />
+            <p className="text-xs text-builder-text-muted">Upload will embed as data URL for quick testing; swap for a hosted URL in production.</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-builder-text-muted">Style preset</Label>
+            <Select
+              value={(props.style as string) || 'ugc'}
+              onValueChange={(v) => updateBlock(page.id, selectedBlock.id, { style: v })}
+            >
+              <SelectTrigger className="bg-builder-bg border-builder-border text-builder-text">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-builder-surface border-builder-border">
+                <SelectItem value="ugc" className="text-builder-text">UGC / handheld</SelectItem>
+                <SelectItem value="cinematic" className="text-builder-text">Cinematic ad</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-builder-text-muted">Status</Label>
+            <div className="text-sm text-builder-text">
+              {(props.status as string) || 'idle'} {props.error ? `— ${props.error}` : ''}
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="p-4 space-y-4">

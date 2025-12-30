@@ -17,6 +17,7 @@ export const AllowedBlockTypes = [
   'ImageGallery',
   'Popup',
   'StickyBar',
+  'UGCVideo',
 ] as const;
 
 export const AllowedBlockTypeSchema = z.enum(AllowedBlockTypes);
