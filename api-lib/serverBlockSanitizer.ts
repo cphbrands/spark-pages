@@ -1,4 +1,4 @@
-import { BlockPropsSchemas, defaultBlockProps, BlockType } from '../src/lib/schemas';
+import { BlockPropsSchemas, defaultBlockProps, BlockType } from '../src/lib/schemas.js';
 
 export type SanitizedBlock = {
   id: string;

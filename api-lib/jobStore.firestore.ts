@@ -1,4 +1,4 @@
-import { getFirestore, doc, setDoc, getDoc } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 
 // Expect a base64-encoded service account JSON in FIREBASE_SERVICE_ACCOUNT
@@ -25,24 +25,25 @@ export type JobRecord = {
 };
 
 export async function createJob(id: string, record: JobRecord) {
-  await setDoc(doc(db, COLLECTION, id), record);
+  const ref = db.doc(`${COLLECTION}/${id}`);
+  await ref.set(record);
 }
 
 export async function updateJob(id: string, updates: Partial<JobRecord>) {
-  const ref = doc(db, COLLECTION, id);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
+  const ref = db.doc(`${COLLECTION}/${id}`);
+  const snap = await ref.get();
+  if (!snap.exists) return;
   const data = snap.data() as JobRecord;
-  await setDoc(ref, { ...data, ...updates }, { merge: true });
+  await ref.set({ ...data, ...updates }, { merge: true });
 }
 
 export async function getJob(id: string) {
-  const snap = await getDoc(doc(db, COLLECTION, id));
-  if (!snap.exists()) return undefined;
+  const snap = await db.doc(`${COLLECTION}/${id}`).get();
+  if (!snap.exists) return undefined;
   return snap.data() as JobRecord;
 }
 
 export async function hasJob(id: string) {
-  const snap = await getDoc(doc(db, COLLECTION, id));
-  return snap.exists();
+  const snap = await db.doc(`${COLLECTION}/${id}`).get();
+  return snap.exists;
 }

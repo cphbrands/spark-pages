@@ -180,7 +180,7 @@ export async function generateConversionPage(
   userPrompt: string,
   options?: {
     niche?: keyof typeof NICHE_TRIGGERS;
-    reference?: { type: 'url' | 'html'; value: string };
+    reference?: { type: 'url' | 'html' | 'image'; value: string };
     enhance?: boolean;
   }
 ) {
