@@ -15,6 +15,7 @@ import { PromptGenerator } from '@/components/PromptGenerator';
 import { TemplatePicker } from '@/components/TemplatePicker';
 import { Button } from '@/components/ui/button';
 import { Sidebar } from '@/components/Sidebar';
+import { BuilderTopBanner } from '@/components/BuilderTopBanner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,34 +63,8 @@ export default function Dashboard() {
             </div>
             <h1 className="text-xl font-bold text-builder-text">PageCraft</h1>
           </div>
-          
-          <nav className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              className="text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-hover"
-              onClick={() => navigate('/builder')}
-            >
-              <Layout className="w-4 h-4 mr-2" />
-              Pages
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-hover"
-              onClick={() => navigate('/builder/leads')}
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Leads
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-hover"
-              onClick={() => navigate('/builder/wizard')}
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Flow Wizard
-            </Button>
-          </nav>
         </div>
+        <BuilderTopBanner />
       </header>
 
       {/* Main Content */}

@@ -54,6 +54,7 @@ import { toast } from '@/hooks/use-toast';
 import { refineLandingPage } from '@/lib/refine-service';
 import { v4 as uuidv4 } from 'uuid';
 import { NICHE_OPTIONS, DARK_PATTERN_PRESETS } from '@/lib/conversionClient';
+import { BuilderTopBanner } from '@/components/BuilderTopBanner';
 
 const blockTypeLabels: Record<BlockType, string> = {
   Hero: 'Hero Section',
@@ -847,6 +848,8 @@ Tone: Urgent, exclusive, transformational.`
           )}
         </div>
       </header>
+
+  <BuilderTopBanner />
 
       {/* Main Editor Area */}
       <div className="flex-1 flex overflow-hidden">

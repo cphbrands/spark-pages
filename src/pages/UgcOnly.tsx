@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Sidebar } from '@/components/Sidebar';
 import { toast } from '@/hooks/use-toast';
 import { FileVideo } from 'lucide-react';
+import { BuilderTopBanner } from '@/components/BuilderTopBanner';
 
 export default function UgcOnly() {
   const [productName, setProductName] = useState('');
@@ -109,6 +110,8 @@ export default function UgcOnly() {
             </div>
           </div>
         </header>
+
+        <BuilderTopBanner />
 
         <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
