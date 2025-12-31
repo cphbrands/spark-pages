@@ -4,7 +4,6 @@ import { LayoutGrid, Sparkles, Wand2, Settings, LogOut, FileVideo, Home, PanelLe
 import { Button } from '@/components/ui/button';
 import { useBuilderStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 
 export function Sidebar() {
   const navigate = useNavigate();
@@ -106,11 +105,7 @@ export function Sidebar() {
           <Button
             key={item.label}
             variant={item.active ? 'secondary' : 'ghost'}
-            className={cn(
-              'w-full justify-start gap-2 rounded-none text-sm hover:text-builder-text',
-              collapsed ? 'px-2' : 'px-3',
-              item.active ? 'text-builder-text' : 'text-builder-text/80'
-            )}
+            className={`w-full justify-start gap-2 rounded-none ${collapsed ? 'px-2' : 'px-3'} text-sm`}
             onClick={item.onClick}
             title={collapsed ? item.label : undefined}
           >

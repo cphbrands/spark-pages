@@ -22,8 +22,6 @@ interface UGCVideoBlockProps {
   theme: Theme;
 }
 
-type BlockStatus = 'idle' | 'processing' | 'ready' | 'error';
-
 type PollResponse = {
   status: 'processing' | 'ready' | 'error';
   videoUrl?: string;
@@ -155,7 +153,7 @@ export function UGCVideoBlock(props: UGCVideoBlockProps) {
             <div className="text-xs opacity-70">Prompt used: {props.prompt}</div>
           )}
         </div>
-      ) : isGenerating || (status as string) === 'processing' ? (
+      ) : isGenerating || status === 'processing' ? (
         <div className="flex items-center gap-2 text-sm opacity-80">
           <span className="animate-spin">⏳</span>
           <span>Generating your video... This may take up to a minute.</span>
@@ -164,7 +162,7 @@ export function UGCVideoBlock(props: UGCVideoBlockProps) {
         <div className="space-y-2">
           <Button
             onClick={handleGenerate}
-            disabled={!imageUrl || isGenerating || (status as string) === 'processing'}
+            disabled={!imageUrl || isGenerating || status === 'processing'}
             className="bg-purple-600 hover:bg-purple-700 text-white"
           >
             🎬 Generate AI Video Testimonial

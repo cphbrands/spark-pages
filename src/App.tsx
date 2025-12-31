@@ -13,7 +13,6 @@ import Preview from "./pages/Preview";
 import Leads from "./pages/Leads";
 import Wizard from "./pages/Wizard";
 import UgcOnly from "./pages/UgcOnly";
-import Library from "./pages/Library";
 
 const queryClient = new QueryClient();
 
@@ -29,7 +28,6 @@ const App = () => (
             <Route path="/builder" element={<Dashboard />} />
             <Route path="/builder/wizard" element={<Wizard />} />
             <Route path="/builder/ugc" element={<UgcOnly />} />
-            <Route path="/builder/library" element={<Library />} />
             <Route path="/builder/pages/:id" element={<Editor />} />
             <Route path="/builder/leads" element={<Leads />} />
             <Route path="/preview/:id" element={<Preview />} />

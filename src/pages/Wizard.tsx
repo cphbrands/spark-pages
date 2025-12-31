@@ -12,7 +12,6 @@ import { useWizardStore, WizardStep } from '@/lib/wizard-store';
 import { generateLandingPage } from '@/lib/generator-service';
 import { defaultBlockProps, type Block, type BlockType } from '@/lib/schemas';
 import { toast } from '@/hooks/use-toast';
-import { BuilderTopBanner } from '@/components/BuilderTopBanner';
 
 const steps: { id: WizardStep; label: string; helper: string }[] = [
   { id: 'prompt', label: 'Prompt', helper: 'Describe your product & upload optional reference' },
@@ -71,7 +70,7 @@ export default function Wizard() {
       setIsGenerating(false);
       toast({
         title: 'Generation failed',
-        description: 'error' in result ? result.error.message : 'Unknown error',
+        description: result.error.message,
         variant: 'destructive',
       });
       wizard.setStep('prompt');
@@ -203,8 +202,6 @@ export default function Wizard() {
           </div>
         </div>
       </header>
-
-      <BuilderTopBanner />
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
