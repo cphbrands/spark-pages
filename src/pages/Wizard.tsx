@@ -71,7 +71,7 @@ export default function Wizard() {
       setIsGenerating(false);
       toast({
         title: 'Generation failed',
-        description: result.error.message,
+        description: 'error' in result ? result.error.message : 'Unknown error',
         variant: 'destructive',
       });
       wizard.setStep('prompt');

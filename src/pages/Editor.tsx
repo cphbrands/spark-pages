@@ -100,7 +100,9 @@ const normalizeBlocks = (blocks: unknown): GenerateResponse['blocks'] => {
       const props = isRecord(block.props) ? block.props : {};
       return { type, props };
     })
-    .filter((b): b is GenerateResponse['blocks'][number] => Boolean(b));
+    .filter((b): b is { type: BlockType; props: Record<string, unknown> } => 
+      b !== null && typeof b.type === 'string' && typeof b.props === 'object'
+    ) as GenerateResponse['blocks'];
 };
 
 const sanitizeBlocksWithIds = (blocks: GenerateResponse['blocks']) =>
@@ -636,15 +638,15 @@ Tone: Urgent, exclusive, transformational.`
         <h3 className="font-semibold text-builder-text">
           {blockTypeLabels[selectedBlock.type]} Properties
         </h3>
-        
+
         {Object.keys(schemaShape).map(key => {
-          const fieldSchema = schemaShape[key];
+          const fieldSchema = schemaShape[key] as { _def?: { typeName?: string; innerType?: { _def?: { typeName?: string; values?: string[] } }; values?: string[] } };
           const value = props[key];
           
           // Handle string fields
-          if (fieldSchema._def?.typeName === 'ZodString' || 
-              (fieldSchema._def?.typeName === 'ZodOptional' && 
-               fieldSchema._def?.innerType?._def?.typeName === 'ZodString')) {
+          if (fieldSchema?._def?.typeName === 'ZodString' || 
+              (fieldSchema?._def?.typeName === 'ZodOptional' && 
+               fieldSchema?._def?.innerType?._def?.typeName === 'ZodString')) {
             const isUrl = key.toLowerCase().includes('url');
             const isLongText = key === 'text' || key === 'description' || key === 'subheadline' || key === 'answer';
             
@@ -674,10 +676,10 @@ Tone: Urgent, exclusive, transformational.`
           }
           
           // Handle enum fields
-          if (fieldSchema._def?.typeName === 'ZodEnum' ||
-              (fieldSchema._def?.typeName === 'ZodOptional' && 
-               fieldSchema._def?.innerType?._def?.typeName === 'ZodEnum')) {
-            const options = fieldSchema._def?.values || fieldSchema._def?.innerType?._def?.values || [];
+          if (fieldSchema?._def?.typeName === 'ZodEnum' ||
+              (fieldSchema?._def?.typeName === 'ZodOptional' && 
+               fieldSchema?._def?.innerType?._def?.typeName === 'ZodEnum')) {
+            const options = fieldSchema?._def?.values || fieldSchema?._def?.innerType?._def?.values || [];
             
             return (
               <div key={key}>
@@ -704,9 +706,9 @@ Tone: Urgent, exclusive, transformational.`
           }
           
           // Handle boolean fields
-          if (fieldSchema._def?.typeName === 'ZodBoolean' ||
-              (fieldSchema._def?.typeName === 'ZodOptional' && 
-               fieldSchema._def?.innerType?._def?.typeName === 'ZodBoolean')) {
+          if (fieldSchema?._def?.typeName === 'ZodBoolean' ||
+              (fieldSchema?._def?.typeName === 'ZodOptional' && 
+               fieldSchema?._def?.innerType?._def?.typeName === 'ZodBoolean')) {
             return (
               <div key={key} className="flex items-center gap-2">
                 <input
