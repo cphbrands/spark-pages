@@ -1,16 +1,37 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Sparkles, Wand2, Settings, LogOut, FileVideo, Home, PanelLeftClose, PanelLeftOpen, Route } from 'lucide-react';
+import { LayoutGrid, Sparkles, Wand2, Settings, LogOut, FileVideo, Home, PanelLeftClose, PanelLeftOpen, Route, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBuilderStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+
+function useTheme() {
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return document.documentElement.classList.contains('dark') || 
+           localStorage.getItem('theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
+
+  return { isDark, toggle: () => setIsDark((d) => !d) };
+}
 
 export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { pages, currentPageId } = useBuilderStore();
   const [collapsed, setCollapsed] = useState(false);
+  const { isDark, toggle: toggleTheme } = useTheme();
 
   // Auto-collapse on smaller viewports
   useEffect(() => {
@@ -124,6 +145,22 @@ export function Sidebar() {
           </Button>
         ))}
       </nav>
+
+      {/* Theme toggle at bottom */}
+      <div className="p-2 border-t border-sidebar-border">
+        <Button
+          variant="ghost"
+          className={cn(
+            'w-full justify-start gap-3 h-9 px-3 font-normal text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50',
+            collapsed && 'justify-center px-0'
+          )}
+          onClick={toggleTheme}
+          title={collapsed ? (isDark ? 'Light mode' : 'Dark mode') : undefined}
+        >
+          {isDark ? <Sun className="w-4 h-4 shrink-0" /> : <Moon className="w-4 h-4 shrink-0" />}
+          {!collapsed && <span>{isDark ? 'Light mode' : 'Night mode'}</span>}
+        </Button>
+      </div>
     </aside>
   );
 }
