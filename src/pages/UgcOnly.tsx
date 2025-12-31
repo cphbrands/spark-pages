@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Sidebar } from '@/components/Sidebar';
 import { toast } from '@/hooks/use-toast';
+import { FileVideo } from 'lucide-react';
 
 export default function UgcOnly() {
   const [productName, setProductName] = useState('');
@@ -132,11 +133,11 @@ export default function UgcOnly() {
                   <option value="cinematic">Cinematic ad</option>
                 </select>
               </div>
-              <div className="flex gap-2">
-                <Button onClick={handlePrompt} disabled={loadingPrompt}>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={handlePrompt} disabled={loadingPrompt} className="flex-1 min-w-[180px]">
                   {loadingPrompt ? 'Generating...' : 'Generate prompt only'}
                 </Button>
-                <Button variant="secondary" onClick={handleVideo} disabled={loadingVideo}>
+                <Button variant="secondary" onClick={handleVideo} disabled={loadingVideo} className="flex-1 min-w-[180px]">
                   {loadingVideo ? 'Starting...' : 'Start video job'}
                 </Button>
               </div>
