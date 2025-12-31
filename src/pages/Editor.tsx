@@ -22,6 +22,7 @@ import {
   RotateCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Sidebar } from '@/components/Sidebar';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -728,7 +729,9 @@ Tone: Urgent, exclusive, transformational.`
   };
 
   return (
-    <div className="h-screen flex flex-col bg-builder-bg">
+    <div className="h-screen flex bg-builder-bg">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0">
       {/* Top Bar */}
       <header className="h-14 border-b border-builder-border bg-builder-surface/80 backdrop-blur-xl flex items-center justify-between px-4">
         <div className="flex items-center gap-4">
@@ -1181,6 +1184,7 @@ Tone: Urgent, exclusive, transformational.`
             </TabsContent>
           </Tabs>
         </div>
+      </div>
       </div>
     </div>
   );

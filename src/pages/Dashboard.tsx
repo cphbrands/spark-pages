@@ -14,6 +14,7 @@ import {
 import { PromptGenerator } from '@/components/PromptGenerator';
 import { TemplatePicker } from '@/components/TemplatePicker';
 import { Button } from '@/components/ui/button';
+import { Sidebar } from '@/components/Sidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,9 +50,11 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-builder-bg">
+    <div className="min-h-screen bg-builder-bg flex">
+      <Sidebar />
+      <div className="flex-1 min-w-0">
       {/* Header */}
-      <header className="border-b border-builder-border bg-builder-surface/50 backdrop-blur-xl sticky top-0 z-50">
+      <header className="border-b border-builder-border bg-builder-surface/50 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-400 flex items-center justify-center">
@@ -90,7 +93,7 @@ export default function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+  <main className="max-w-7xl mx-auto px-6 py-8">
         {/* AI Generator */}
         <PromptGenerator />
 
@@ -228,6 +231,7 @@ export default function Dashboard() {
 
       {/* Template Selection Dialog */}
       <TemplatePicker open={showTemplates} onOpenChange={setShowTemplates} />
+      </div>
     </div>
   );
 }

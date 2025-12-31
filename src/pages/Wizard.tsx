@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Loader2, Save, Sparkles, Wand2, Video } from 'lucide-react';
+import { Sidebar } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -176,7 +177,9 @@ export default function Wizard() {
   const ugcBlock = currentPage?.blocks.find((b) => b.type === 'UGCVideo');
 
   return (
-    <div className="min-h-screen bg-builder-bg">
+    <div className="min-h-screen bg-builder-bg flex">
+      <Sidebar />
+      <div className="flex-1 min-w-0">
       <header className="border-b border-builder-border bg-builder-surface/70 backdrop-blur-xl sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -369,6 +372,7 @@ export default function Wizard() {
           </div>
         )}
       </main>
+      </div>
     </div>
   );
 }
