@@ -12,6 +12,7 @@ import { useWizardStore, WizardStep } from '@/lib/wizard-store';
 import { generateLandingPage } from '@/lib/generator-service';
 import { defaultBlockProps, type Block, type BlockType } from '@/lib/schemas';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const steps: { id: WizardStep; label: string; helper: string }[] = [
   { id: 'prompt', label: 'Prompt', helper: 'Describe your product & upload optional reference' },
@@ -68,9 +69,10 @@ export default function Wizard() {
 
     if (!result.success) {
       setIsGenerating(false);
+      const errResult = result as { success: false; error: { message: string } };
       toast({
         title: 'Generation failed',
-        description: result.error.message,
+        description: errResult.error?.message ?? 'Unknown error',
         variant: 'destructive',
       });
       wizard.setStep('prompt');
@@ -80,7 +82,7 @@ export default function Wizard() {
     const now = new Date().toISOString();
     const data = result.data;
     const newPageId = crypto.randomUUID();
-    const blocks: Block[] = data.blocks.map((block, idx) => ({
+    const blocks: Block[] = data.blocks.map((block) => ({
       id: crypto.randomUUID(),
       type: block.type as BlockType,
       props: block.props,
@@ -173,205 +175,212 @@ export default function Wizard() {
   };
 
   const canGoNext = currentStepIndex < steps.length - 1;
-
   const ugcBlock = currentPage?.blocks.find((b) => b.type === 'UGCVideo');
 
   return (
-    <div className="min-h-screen bg-builder-bg flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar />
       <div className="flex-1 min-w-0">
-      <header className="border-b border-builder-border bg-builder-surface/70 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold text-builder-text">Flowchart Wizard</h1>
-              <p className="text-sm text-builder-text-muted">Follows the prompt → AI page → UGC video flow.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleSaveDraft} disabled={isSavingDraft}>
-              {isSavingDraft ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              Save Draft
-            </Button>
-            {wizard.lastSavedAt && (
-              <span className="text-xs text-builder-text-muted">Last saved {new Date(wizard.lastSavedAt).toLocaleTimeString()}</span>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          {steps.map((step, idx) => (
-            <div
-              key={step.id}
-              className={`p-3 rounded-lg border ${idx <= currentStepIndex ? 'border-primary bg-primary/5' : 'border-builder-border bg-builder-surface/60'}`}
-            >
-              <div className="flex items-center gap-2 text-sm font-medium text-builder-text">
-                {idx < currentStepIndex ? <CheckCircle2 className="w-4 h-4 text-primary" /> : <span className="w-2 h-2 rounded-full bg-builder-text-muted" />}
-                {step.label}
-              </div>
-              <p className="text-xs text-builder-text-muted mt-1">{step.helper}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Step content */}
-        {wizard.step === 'prompt' || wizard.step === 'generate' ? (
-          <div className="builder-panel p-6 space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Wand2 className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-builder-text">Step 1: Prompt</h2>
-            </div>
-            <Textarea
-              value={localPrompt}
-              onChange={(e) => setLocalPrompt(e.target.value)}
-              placeholder="Describe your offer, audience, and promise"
-              className="min-h-[140px]"
-              maxLength={2000}
-            />
-            <div>
-              <label className="text-sm text-builder-text-muted block mb-2">Optional reference image (URL)</label>
-              <Input
-                value={referenceImage}
-                onChange={(e) => setReferenceImage(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
-              />
-              {referenceImage && !isTrustedImage(referenceImage) && (
-                <p className="text-xs text-amber-600 mt-1">Use a trusted HTTPS image source to pass validation.</p>
-              )}
-            </div>
+        <header className="app-header">
+          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button onClick={handleGenerate} disabled={isGenerating}>
-                {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                Generate AI Page
-              </Button>
-              {currentPage && (
-                <Button variant="secondary" onClick={() => wizard.setStep('edit-page')}>
-                  Skip to edit
-                </Button>
-              )}
-            </div>
-          </div>
-        ) : null}
-
-        {wizard.step === 'edit-page' && currentPage && (
-          <div className="builder-panel p-6 space-y-4">
-            <div className="flex items-center justify-between">
+              <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-primary-foreground" />
+              </div>
               <div>
-                <h2 className="text-lg font-semibold text-builder-text">Step 2: Review & Edit</h2>
-                <p className="text-sm text-builder-text-muted">Uses the same block editors as the main builder.</p>
+                <h1 className="text-lg font-semibold text-foreground">Flowchart Wizard</h1>
+                <p className="text-xs text-muted-foreground">Prompt → AI page → UGC video</p>
               </div>
-              <Button onClick={goToEditor}>
-                Open Editor
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
             </div>
-            <div className="rounded-lg border border-builder-border overflow-hidden">
-              <PageRenderer page={currentPage} />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="secondary" onClick={() => wizard.setStep('ugc-prompt')}>
-                Continue to UGC prompt
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {wizard.step === 'ugc-prompt' && currentPage && (
-          <div className="builder-panel p-6 space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Video className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-builder-text">Step 3: Generate UGC Prompt</h2>
-            </div>
-            <p className="text-sm text-builder-text-muted">
-              Calls the prompt-only helper so no video job starts yet. You can edit before running.
-            </p>
-            <Textarea
-              value={ugcResult}
-              onChange={(e) => {
-                setUgcResult(e.target.value);
-                wizard.setUgcPrompt(e.target.value);
-              }}
-              placeholder="The generated UGC prompt will appear here"
-              className="min-h-[160px]"
-            />
-            <div className="flex items-center gap-3">
-              <Button onClick={handleGenerateUgcPrompt} disabled={ugcLoading}>
-                {ugcLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                Generate Prompt Only
-              </Button>
-              <Button variant="secondary" onClick={() => wizard.setStep('ugc-video')}>
-                Skip to video
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {wizard.step === 'ugc-video' && currentPage && ugcBlock && (
-          <div className="builder-panel p-6 space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Video className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-builder-text">Step 4: Start Video Task</h2>
-            </div>
-            <p className="text-sm text-builder-text-muted">
-              Reuses the same polling logic from the UGC video block. When ready, the page preview updates automatically.
-            </p>
-            <UGCVideoBlock
-              blockId={ugcBlock.id}
-              pageId={currentPage.id}
-              productName={(ugcBlock.props as Record<string, unknown>).productName as string || currentPage.meta.title}
-              imageUrl={(ugcBlock.props as Record<string, unknown>).imageUrl as string || referenceImage}
-              style={(ugcBlock.props as Record<string, unknown>).style as 'ugc' | 'cinematic' | undefined || wizard.ugcStyle}
-              videoUrl={(ugcBlock.props as Record<string, unknown>).videoUrl as string | undefined}
-              thumbnailUrl={(ugcBlock.props as Record<string, unknown>).thumbnailUrl as string | undefined}
-              prompt={ugcResult || ((ugcBlock.props as Record<string, unknown>).prompt as string | undefined)}
-              status={(ugcBlock.props as Record<string, unknown>).status as 'idle' | 'processing' | 'ready' | 'error' | undefined}
-              error={(ugcBlock.props as Record<string, unknown>).error as string | undefined}
-              metadata={(ugcBlock.props as Record<string, unknown>).metadata as { aiGenerated: boolean; disclosureText?: string } | undefined}
-              theme={currentPage.theme}
-            />
-            <div className="flex items-center gap-3">
-              <Button onClick={() => wizard.setStep('finalize')}>
-                Continue to finalize
-              </Button>
-              {canGoNext && (
-                <Button variant="secondary" onClick={() => wizard.setStep('ugc-prompt')}>
-                  Back to prompt
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {wizard.step === 'finalize' && currentPage && (
-          <div className="builder-panel p-6 space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle2 className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-builder-text">Step 5: Finalize & Preview</h2>
-            </div>
-            <p className="text-sm text-builder-text-muted">Save your draft to Firestore and open the live preview.</p>
-            <div className="rounded-lg border border-builder-border overflow-hidden">
-              <PageRenderer page={currentPage} />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button onClick={handleSaveDraft} disabled={isSavingDraft}>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleSaveDraft} disabled={isSavingDraft}>
                 {isSavingDraft ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                 Save Draft
               </Button>
-              <Button variant="secondary" onClick={() => navigate(`/preview/${currentPage.id}`)}>
-                Preview Page
-              </Button>
-              <Button variant="ghost" onClick={() => wizard.reset()}>
-                Start Over
-              </Button>
+              {wizard.lastSavedAt && (
+                <span className="text-xs text-muted-foreground">
+                  Last saved {new Date(wizard.lastSavedAt).toLocaleTimeString()}
+                </span>
+              )}
             </div>
           </div>
-        )}
-      </main>
+        </header>
+
+        <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+          {/* Step indicators */}
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+            {steps.map((step, idx) => (
+              <div
+                key={step.id}
+                className={cn(
+                  'p-3 rounded-lg border transition-colors',
+                  idx <= currentStepIndex
+                    ? 'border-primary/40 bg-accent'
+                    : 'border-border bg-card'
+                )}
+              >
+                <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                  {idx < currentStepIndex ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                  ) : (
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                  )}
+                  {step.label}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">{step.helper}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Step content */}
+          {(wizard.step === 'prompt' || wizard.step === 'generate') && (
+            <div className="builder-panel p-6 space-y-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Wand2 className="w-4 h-4 text-primary" />
+                <h2 className="font-medium text-foreground">Step 1: Prompt</h2>
+              </div>
+              <Textarea
+                value={localPrompt}
+                onChange={(e) => setLocalPrompt(e.target.value)}
+                placeholder="Describe your offer, audience, and promise"
+                className="min-h-[120px]"
+                maxLength={2000}
+              />
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">Optional reference image (URL)</label>
+                <Input
+                  value={referenceImage}
+                  onChange={(e) => setReferenceImage(e.target.value)}
+                  placeholder="https://images.unsplash.com/..."
+                />
+                {referenceImage && !isTrustedImage(referenceImage) && (
+                  <p className="text-xs text-warning mt-1">Use a trusted HTTPS image source to pass validation.</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={handleGenerate} disabled={isGenerating}>
+                  {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                  Generate AI Page
+                </Button>
+                {currentPage && (
+                  <Button variant="secondary" size="sm" onClick={() => wizard.setStep('edit-page')}>
+                    Skip to edit
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {wizard.step === 'edit-page' && currentPage && (
+            <div className="builder-panel p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-medium text-foreground">Step 2: Review & Edit</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Uses the same block editors as the main builder.</p>
+                </div>
+                <Button size="sm" onClick={goToEditor}>
+                  Open Editor
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+              <div className="rounded-lg border border-border overflow-hidden">
+                <PageRenderer page={currentPage} />
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => wizard.setStep('ugc-prompt')}>
+                Continue to UGC prompt
+              </Button>
+            </div>
+          )}
+
+          {wizard.step === 'ugc-prompt' && currentPage && (
+            <div className="builder-panel p-6 space-y-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Video className="w-4 h-4 text-primary" />
+                <h2 className="font-medium text-foreground">Step 3: Generate UGC Prompt</h2>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Calls the prompt-only helper so no video job starts yet. You can edit before running.
+              </p>
+              <Textarea
+                value={ugcResult}
+                onChange={(e) => {
+                  setUgcResult(e.target.value);
+                  wizard.setUgcPrompt(e.target.value);
+                }}
+                placeholder="The generated UGC prompt will appear here"
+                className="min-h-[140px]"
+              />
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={handleGenerateUgcPrompt} disabled={ugcLoading}>
+                  {ugcLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                  Generate Prompt Only
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => wizard.setStep('ugc-video')}>
+                  Skip to video
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {wizard.step === 'ugc-video' && currentPage && ugcBlock && (
+            <div className="builder-panel p-6 space-y-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Video className="w-4 h-4 text-primary" />
+                <h2 className="font-medium text-foreground">Step 4: Start Video Task</h2>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Reuses the same polling logic from the UGC video block. When ready, the page preview updates automatically.
+              </p>
+              <UGCVideoBlock
+                blockId={ugcBlock.id}
+                pageId={currentPage.id}
+                productName={(ugcBlock.props as Record<string, unknown>).productName as string || currentPage.meta.title}
+                imageUrl={(ugcBlock.props as Record<string, unknown>).imageUrl as string || referenceImage}
+                style={(ugcBlock.props as Record<string, unknown>).style as 'ugc' | 'cinematic' | undefined || wizard.ugcStyle}
+                videoUrl={(ugcBlock.props as Record<string, unknown>).videoUrl as string | undefined}
+                thumbnailUrl={(ugcBlock.props as Record<string, unknown>).thumbnailUrl as string | undefined}
+                prompt={ugcResult || ((ugcBlock.props as Record<string, unknown>).prompt as string | undefined)}
+                status={(ugcBlock.props as Record<string, unknown>).status as 'idle' | 'processing' | 'ready' | 'error' | undefined}
+                error={(ugcBlock.props as Record<string, unknown>).error as string | undefined}
+                metadata={(ugcBlock.props as Record<string, unknown>).metadata as { aiGenerated: boolean; disclosureText?: string } | undefined}
+                theme={currentPage.theme}
+              />
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={() => wizard.setStep('finalize')}>Continue to finalize</Button>
+                {canGoNext && (
+                  <Button variant="secondary" size="sm" onClick={() => wizard.setStep('ugc-prompt')}>
+                    Back to prompt
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {wizard.step === 'finalize' && currentPage && (
+            <div className="builder-panel p-6 space-y-4">
+              <div className="flex items-center gap-2 mb-1">
+                <CheckCircle2 className="w-4 h-4 text-primary" />
+                <h2 className="font-medium text-foreground">Step 5: Finalize & Preview</h2>
+              </div>
+              <p className="text-xs text-muted-foreground">Save your draft to Firestore and open the live preview.</p>
+              <div className="rounded-lg border border-border overflow-hidden">
+                <PageRenderer page={currentPage} />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={handleSaveDraft} disabled={isSavingDraft}>
+                  {isSavingDraft ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                  Save Draft
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => navigate(`/preview/${currentPage.id}`)}>
+                  Preview Page
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => wizard.reset()}>
+                  Start Over
+                </Button>
+              </div>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );

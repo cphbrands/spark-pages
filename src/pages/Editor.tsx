@@ -99,7 +99,7 @@ const normalizeBlocks = (blocks: unknown): GenerateResponse['blocks'] => {
       const props = isRecord(block.props) ? block.props : {};
       return { type, props };
     })
-    .filter((b): b is GenerateResponse['blocks'][number] => Boolean(b));
+    .filter((b): b is { type: BlockType; props: Record<string, unknown> } => Boolean(b && b.type && b.props));
 };
 
 const sanitizeBlocksWithIds = (blocks: GenerateResponse['blocks']) =>
@@ -560,7 +560,8 @@ Tone: Urgent, exclusive, transformational.`
 
   const props = selectedBlock.props as Record<string, unknown>;
     const schema = BlockPropsSchemas[selectedBlock.type];
-  const schemaShape = schema.shape as Record<string, unknown>;
+  type ZodFieldDef = { _def?: { typeName?: string; values?: string[]; innerType?: ZodFieldDef } };
+  const schemaShape = schema.shape as Record<string, ZodFieldDef>;
 
     if (selectedBlock.type === 'UGCVideo') {
       return (
