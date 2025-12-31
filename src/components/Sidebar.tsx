@@ -4,6 +4,7 @@ import { LayoutGrid, Sparkles, Wand2, Settings, LogOut, FileVideo, Home, PanelLe
 import { Button } from '@/components/ui/button';
 import { useBuilderStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 export function Sidebar() {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ export function Sidebar() {
     return pageId ? `/builder/pages/${pageId}` : '/builder';
   }, [currentPageId, pages]);
 
-  const items: Array<{ label: string; icon: React.ElementType; onClick: () => void; active?: boolean } > = [
+  const items: Array<{ label: string; icon: React.ElementType; onClick: () => void; active?: boolean }> = [
     {
       label: 'Dashboard',
       icon: Home,
@@ -77,39 +78,48 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`h-screen sticky top-0 bg-builder-surface/70 border-r border-builder-border backdrop-blur flex flex-col transition-all duration-200 ${collapsed ? 'w-16' : 'w-60'} shrink-0`}
+      className={cn(
+        'h-screen sticky top-0 bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-200 shrink-0',
+        collapsed ? 'w-16' : 'w-60'
+      )}
     >
-      <div className="px-3 py-4 flex items-center gap-2 border-b border-builder-border justify-between">
-        <div className="flex items-center gap-2 overflow-hidden">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-5 h-5 text-white" />
+      {/* Logo section */}
+      <div className="px-3 py-4 flex items-center gap-2 border-b border-sidebar-border justify-between">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-4 h-4 text-primary-foreground" />
           </div>
           {!collapsed && (
-            <div className="leading-tight">
-              <div className="font-semibold text-builder-text">PageCraft</div>
-              <div className="text-[11px] text-builder-text-muted">Builder</div>
-            </div>
+            <span className="font-semibold text-sidebar-foreground text-sm">PageCraft</span>
           )}
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="text-builder-text-muted hover:text-builder-text"
+          className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
           onClick={() => setCollapsed((c) => !c)}
         >
           {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
         </Button>
       </div>
-      <nav className="flex-1 overflow-auto py-4 space-y-1">
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-auto py-3 px-2 space-y-1">
         {items.map((item) => (
           <Button
             key={item.label}
-            variant={item.active ? 'secondary' : 'ghost'}
-            className={`w-full justify-start gap-2 rounded-none ${collapsed ? 'px-2' : 'px-3'} text-sm`}
+            variant="ghost"
+            className={cn(
+              'w-full justify-start gap-3 h-9 px-3 font-normal text-sm',
+              collapsed && 'justify-center px-0',
+              item.active
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
+            )}
             onClick={item.onClick}
             title={collapsed ? item.label : undefined}
           >
-            <item.icon className="w-4 h-4" />
+            <item.icon className="w-4 h-4 shrink-0" />
             {!collapsed && <span>{item.label}</span>}
           </Button>
         ))}

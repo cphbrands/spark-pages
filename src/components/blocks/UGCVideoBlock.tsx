@@ -162,7 +162,7 @@ export function UGCVideoBlock(props: UGCVideoBlockProps) {
         <div className="space-y-2">
           <Button
             onClick={handleGenerate}
-            disabled={!imageUrl || isGenerating || status === 'processing'}
+            disabled={!imageUrl || isGenerating}
             className="bg-purple-600 hover:bg-purple-700 text-white"
           >
             🎬 Generate AI Video Testimonial
