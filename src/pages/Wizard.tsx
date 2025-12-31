@@ -36,6 +36,7 @@ export default function Wizard() {
 
   const [localPrompt, setLocalPrompt] = useState(wizard.prompt);
   const [referenceImage, setReferenceImage] = useState(wizard.imageUrl || '');
+  const [referenceImageDataUrl, setReferenceImageDataUrl] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [ugcResult, setUgcResult] = useState<string>(wizard.ugcPrompt || '');
@@ -49,6 +50,7 @@ export default function Wizard() {
   useEffect(() => {
     setLocalPrompt(wizard.prompt);
     setReferenceImage(wizard.imageUrl || '');
+    setReferenceImageDataUrl('');
     setUgcResult(wizard.ugcPrompt || '');
   }, [wizard.prompt, wizard.imageUrl, wizard.ugcPrompt]);
 
@@ -62,10 +64,15 @@ export default function Wizard() {
 
     setIsGenerating(true);
     wizard.setPrompt(localPrompt.trim());
-    wizard.setReference(referenceImage ? { type: 'image', value: referenceImage } : undefined, referenceImage || undefined);
+    const imageValue = referenceImageDataUrl || referenceImage;
+    wizard.setReference(imageValue ? { type: 'image', value: imageValue } : undefined, imageValue || undefined);
     wizard.setStep('generate');
 
-    const result = await generateLandingPage(localPrompt.trim(), undefined, referenceImage ? { type: 'image', value: referenceImage } : undefined);
+    const result = await generateLandingPage(
+      localPrompt.trim(),
+      undefined,
+      imageValue ? { type: 'image', value: imageValue } : undefined
+    );
 
     if (!result.success) {
       setIsGenerating(false);
@@ -174,6 +181,23 @@ export default function Wizard() {
     }
   };
 
+  const handleImageFile = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Invalid file', description: 'Please select an image file.', variant: 'destructive' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setReferenceImageDataUrl(reader.result);
+        setReferenceImage('');
+        toast({ title: 'Image added', description: 'Using uploaded image as reference.' });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const canGoNext = currentStepIndex < steps.length - 1;
   const ugcBlock = currentPage?.blocks.find((b) => b.type === 'UGCVideo');
 
@@ -181,97 +205,106 @@ export default function Wizard() {
     <div className="min-h-screen bg-background flex">
       <Sidebar />
       <div className="flex-1 min-w-0">
-        <header className="app-header">
-          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-foreground">Flowchart Wizard</h1>
-                <p className="text-xs text-muted-foreground">Prompt → AI page → UGC video</p>
-              </div>
+      <header className="border-b border-builder-border bg-builder-surface/70 backdrop-blur-xl sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleSaveDraft} disabled={isSavingDraft}>
-                {isSavingDraft ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Save Draft
+            <div>
+              <h1 className="text-xl font-semibold text-builder-text">Flowchart Wizard</h1>
+              <p className="text-sm text-builder-text-muted">Follows the prompt → AI page → UGC video flow.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleSaveDraft} disabled={isSavingDraft}>
+              {isSavingDraft ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Save Draft
+            </Button>
+            {wizard.lastSavedAt && (
+              <span className="text-xs text-builder-text-muted">Last saved {new Date(wizard.lastSavedAt).toLocaleTimeString()}</span>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <BuilderTopBanner />
+
+      <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          {steps.map((step, idx) => (
+            <div
+              key={step.id}
+              className={`p-3 rounded-lg border ${idx <= currentStepIndex ? 'border-primary bg-primary/5' : 'border-builder-border bg-builder-surface/60'}`}
+            >
+              <div className="flex items-center gap-2 text-sm font-medium text-builder-text">
+                {idx < currentStepIndex ? <CheckCircle2 className="w-4 h-4 text-primary" /> : <span className="w-2 h-2 rounded-full bg-builder-text-muted" />}
+                {step.label}
+              </div>
+              <p className="text-xs text-builder-text-muted mt-1">{step.helper}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Step content */}
+  {(wizard.step === 'prompt' || wizard.step === 'generate') && (
+          <div className="builder-panel p-6 space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Wand2 className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold text-builder-text">Step 1: Prompt</h2>
+            </div>
+            <Textarea
+              value={localPrompt}
+              onChange={(e) => setLocalPrompt(e.target.value)}
+              placeholder="Describe your offer, audience, and promise"
+              className="min-h-[140px]"
+              maxLength={2000}
+            />
+            <div className="space-y-2">
+              <label className="text-sm text-builder-text-muted block">Reference image (URL or upload)</label>
+              <Input
+                value={referenceImage}
+                onChange={(e) => setReferenceImage(e.target.value)}
+                placeholder="Paste an image URL"
+              />
+              <div className="flex items-center gap-2 text-sm text-builder-text-muted">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageFile(e.target.files?.[0])}
+                  className="text-sm text-builder-text"
+                />
+              </div>
+              {(referenceImageDataUrl || referenceImage) && (
+                <div className="rounded-lg border border-builder-border p-2 bg-builder-surface/70">
+                  <p className="text-xs text-builder-text-muted mb-2">Preview</p>
+                  <img
+                    src={referenceImageDataUrl || referenceImage}
+                    alt="Reference"
+                    className="w-full max-h-48 object-cover rounded"
+                  />
+                </div>
+              )}
+              {referenceImage && !isTrustedImage(referenceImage) && !referenceImageDataUrl && (
+                <p className="text-xs text-amber-600 mt-1">Use a trusted HTTPS image source to pass validation.</p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button size="sm" onClick={handleGenerate} disabled={isGenerating}>
+                {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Generate AI Page
               </Button>
-              {wizard.lastSavedAt && (
-                <span className="text-xs text-muted-foreground">
-                  Last saved {new Date(wizard.lastSavedAt).toLocaleTimeString()}
-                </span>
+              {currentPage && (
+                <Button variant="secondary" size="sm" onClick={() => wizard.setStep('edit-page')}>
+                  Skip to edit
+                </Button>
               )}
             </div>
           </div>
-        </header>
+        )}
 
-        <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-          {/* Step indicators */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-            {steps.map((step, idx) => (
-              <div
-                key={step.id}
-                className={cn(
-                  'p-3 rounded-lg border transition-colors',
-                  idx <= currentStepIndex
-                    ? 'border-primary/40 bg-accent'
-                    : 'border-border bg-card'
-                )}
-              >
-                <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-                  {idx < currentStepIndex ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-                  ) : (
-                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-                  )}
-                  {step.label}
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">{step.helper}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Step content */}
-          {(wizard.step === 'prompt' || wizard.step === 'generate') && (
-            <div className="builder-panel p-6 space-y-4">
-              <div className="flex items-center gap-2 mb-1">
-                <Wand2 className="w-4 h-4 text-primary" />
-                <h2 className="font-medium text-foreground">Step 1: Prompt</h2>
-              </div>
-              <Textarea
-                value={localPrompt}
-                onChange={(e) => setLocalPrompt(e.target.value)}
-                placeholder="Describe your offer, audience, and promise"
-                className="min-h-[120px]"
-                maxLength={2000}
-              />
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1.5">Optional reference image (URL)</label>
-                <Input
-                  value={referenceImage}
-                  onChange={(e) => setReferenceImage(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
-                />
-                {referenceImage && !isTrustedImage(referenceImage) && (
-                  <p className="text-xs text-warning mt-1">Use a trusted HTTPS image source to pass validation.</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" onClick={handleGenerate} disabled={isGenerating}>
-                  {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                  Generate AI Page
-                </Button>
-                {currentPage && (
-                  <Button variant="secondary" size="sm" onClick={() => wizard.setStep('edit-page')}>
-                    Skip to edit
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {wizard.step === 'edit-page' && currentPage && (
+        {wizard.step === 'edit-page' && currentPage && (
             <div className="builder-panel p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div>

@@ -1,5 +1,5 @@
 import { db, auth } from './firebase';
-import { collection, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { signInAnonymously, User } from 'firebase/auth';
 import type { Page } from './schemas';
 
@@ -26,4 +26,9 @@ export async function loadPage(id: string): Promise<Page | null> {
   await ensureSignedIn();
   const snap = await getDoc(doc(pagesCol, id));
   return snap.exists() ? (snap.data() as Page) : null;
+}
+
+export async function deletePageRemote(id: string) {
+  await ensureSignedIn();
+  await deleteDoc(doc(pagesCol, id));
 }

@@ -1,37 +1,36 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Sparkles, Wand2, Settings, LogOut, FileVideo, Home, PanelLeftClose, PanelLeftOpen, Route, Moon, Sun } from 'lucide-react';
+import {
+  LayoutGrid,
+  Sparkles,
+  Wand2,
+  Settings,
+  FileVideo,
+  Home,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Route,
+  BookOpen,
+  SunMedium,
+  Moon,
+  LifeBuoy,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBuilderStore } from '@/lib/store';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-
-function useTheme() {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return document.documentElement.classList.contains('dark') || 
-           localStorage.getItem('theme') === 'dark';
-  });
-
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDark]);
-
-  return { isDark, toggle: () => setIsDark((d) => !d) };
-}
 
 export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { pages, currentPageId } = useBuilderStore();
   const [collapsed, setCollapsed] = useState(false);
-  const { isDark, toggle: toggleTheme } = useTheme();
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'light';
+    const stored = localStorage.getItem('theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
 
   // Auto-collapse on smaller viewports
   useEffect(() => {
@@ -57,22 +56,28 @@ export function Sidebar() {
       active: location.pathname === '/builder',
     },
     {
-      label: 'My Pages',
-      icon: LayoutGrid,
-      onClick: () => navigate('/builder'),
-      active: location.pathname === '/builder',
+      label: 'Flow Wizard',
+      icon: Route,
+      onClick: () => navigate('/builder/wizard'),
+      active: location.pathname.startsWith('/builder/wizard'),
     },
     {
-      label: 'My UGC',
+      label: 'UGC Only',
       icon: FileVideo,
       onClick: () => navigate('/builder/ugc'),
       active: location.pathname.startsWith('/builder/ugc'),
     },
     {
-      label: 'Wizard',
-      icon: Route,
-      onClick: () => navigate('/builder/wizard'),
-      active: location.pathname.startsWith('/builder/wizard'),
+      label: 'Page Builder',
+      icon: LayoutGrid,
+      onClick: () => navigate('/builder/page-builder'),
+      active: location.pathname.startsWith('/builder/page-builder'),
+    },
+    {
+      label: 'Library',
+      icon: BookOpen,
+      onClick: () => navigate('/builder/library'),
+      active: location.pathname.startsWith('/builder/library'),
     },
     {
       label: 'Editor',
@@ -80,22 +85,17 @@ export function Sidebar() {
       onClick: () => navigate(editorPath),
       active: location.pathname.startsWith('/builder/pages'),
     },
-    {
-      label: 'Settings',
-      icon: Settings,
-      onClick: () => toast({ title: 'Settings', description: 'Settings screen coming soon.' }),
-      active: location.pathname.includes('/settings'),
-    },
-    {
-      label: 'Sign out',
-      icon: LogOut,
-      onClick: () => {
-        localStorage.clear();
-        toast({ title: 'Signed out', description: 'Local data cleared.' });
-        navigate('/');
-      },
-    },
   ];
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   return (
     <aside
@@ -146,19 +146,42 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Theme toggle at bottom */}
-      <div className="p-2 border-t border-sidebar-border">
+      <div className={cn('border-t border-builder-border px-3 py-3 space-y-2', collapsed && 'px-2')}>
         <Button
           variant="ghost"
           className={cn(
-            'w-full justify-start gap-3 h-9 px-3 font-normal text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50',
-            collapsed && 'justify-center px-0'
+            'w-full justify-start gap-2 rounded-none text-sm hover:text-builder-text',
+            collapsed ? 'px-2' : 'px-3'
           )}
-          onClick={toggleTheme}
-          title={collapsed ? (isDark ? 'Light mode' : 'Dark mode') : undefined}
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          title="Toggle theme"
         >
-          {isDark ? <Sun className="w-4 h-4 shrink-0" /> : <Moon className="w-4 h-4 shrink-0" />}
-          {!collapsed && <span>{isDark ? 'Light mode' : 'Night mode'}</span>}
+          {theme === 'dark' ? <SunMedium className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          {!collapsed && <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
+        </Button>
+        <Button
+          variant="ghost"
+          className={cn(
+            'w-full justify-start gap-2 rounded-none text-sm hover:text-builder-text',
+            collapsed ? 'px-2' : 'px-3'
+          )}
+          onClick={() => toast({ title: 'Settings', description: 'Settings coming soon.' })}
+          title="Settings"
+        >
+          <Settings className="w-4 h-4" />
+          {!collapsed && <span>Settings</span>}
+        </Button>
+        <Button
+          variant="ghost"
+          className={cn(
+            'w-full justify-start gap-2 rounded-none text-sm hover:text-builder-text',
+            collapsed ? 'px-2' : 'px-3'
+          )}
+          onClick={() => toast({ title: 'Support', description: 'Support chat coming soon.' })}
+          title="Support"
+        >
+          <LifeBuoy className="w-4 h-4" />
+          {!collapsed && <span>Support</span>}
         </Button>
       </div>
     </aside>

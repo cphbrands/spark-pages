@@ -9,6 +9,7 @@ import { FileVideo } from 'lucide-react';
 export default function UgcOnly() {
   const [productName, setProductName] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [imageDataUrl, setImageDataUrl] = useState('');
   const [style, setStyle] = useState<'ugc' | 'cinematic'>('ugc');
   const [promptResult, setPromptResult] = useState('');
   const [taskId, setTaskId] = useState('');
@@ -30,7 +31,12 @@ export default function UgcOnly() {
       const res = await fetch('/api/generate-ugc-prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productName, imageUrl: imageUrl || undefined, style }),
+        body: JSON.stringify({
+          productName,
+          imageUrl: imageUrl || undefined,
+          imageBase64: imageDataUrl || undefined,
+          style,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Prompt failed');
@@ -67,8 +73,9 @@ export default function UgcOnly() {
   };
 
   const handleVideo = async () => {
-    if (!productName.trim() || !imageUrl.trim()) {
-      toast({ title: 'Product name and image URL required', variant: 'destructive' });
+    const hasImage = Boolean(imageUrl.trim() || imageDataUrl);
+    if (!productName.trim() || !hasImage) {
+      toast({ title: 'Product name and image required', description: 'Upload an image or paste a URL.', variant: 'destructive' });
       return;
     }
     setLoadingVideo(true);
@@ -78,7 +85,12 @@ export default function UgcOnly() {
       const res = await fetch('/api/generate-ugc-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productName, imageUrl, style }),
+        body: JSON.stringify({
+          productName,
+          imageUrl: imageUrl || undefined,
+          imageBase64: imageDataUrl || undefined,
+          style,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to start video');
@@ -92,25 +104,38 @@ export default function UgcOnly() {
     }
   };
 
+  const handleImageFile = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Invalid file', description: 'Please select an image.', variant: 'destructive' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setImageDataUrl(reader.result);
+        setImageUrl('');
+        toast({ title: 'Image added', description: 'Using uploaded image for generation.' });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="min-h-screen bg-builder-bg flex">
       <Sidebar />
       <div className="flex-1 min-w-0">
-        <header className="border-b border-builder-border bg-builder-surface/70 backdrop-blur-xl sticky top-0 z-40">
-          <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                <FileVideo className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-builder-text">UGC Generator</h1>
-                <p className="text-sm text-builder-text-muted">Generate prompt or video without a landing page.</p>
-              </div>
+        <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <FileVideo className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-builder-text">UGC Generator</h1>
+              <p className="text-sm text-builder-text-muted">Generate prompt or video without a landing page.</p>
             </div>
           </div>
-        </header>
 
-        <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="builder-panel p-4 space-y-3">
               <h2 className="font-semibold text-builder-text">Inputs</h2>
@@ -119,8 +144,28 @@ export default function UgcOnly() {
                 <Input value={productName} onChange={(e) => setProductName(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <label className="text-sm text-builder-text-muted">Image URL</label>
-                <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://images.unsplash.com/..." />
+                <label className="text-sm text-builder-text-muted">Image</label>
+                <div className="space-y-2">
+                  <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Paste an image URL (optional if uploading)" />
+                  <div className="flex items-center gap-2 text-sm text-builder-text-muted">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageFile(e.target.files?.[0])}
+                      className="text-sm text-builder-text"
+                    />
+                  </div>
+                  {(imageDataUrl || imageUrl) && (
+                    <div className="rounded-lg border border-builder-border p-2 bg-builder-surface/70">
+                      <p className="text-xs text-builder-text-muted mb-2">Preview</p>
+                      <img
+                        src={imageDataUrl || imageUrl}
+                        alt="Selected"
+                        className="w-full max-h-40 object-cover rounded"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-sm text-builder-text-muted">Style</label>

@@ -7,12 +7,14 @@ import { HelmetProvider } from "react-helmet-async";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
+import Library from "./pages/Library";
 import Editor from "./pages/Editor";
 import PublicPage from "./pages/PublicPage";
 import Preview from "./pages/Preview";
 import Leads from "./pages/Leads";
 import Wizard from "./pages/Wizard";
 import UgcOnly from "./pages/UgcOnly";
+import PageBuilder from "./pages/PageBuilder";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +28,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/builder" element={<Dashboard />} />
+            <Route path="/builder/page-builder" element={<PageBuilder />} />
+            <Route path="/builder/library" element={<Library />} />
             <Route path="/builder/wizard" element={<Wizard />} />
             <Route path="/builder/ugc" element={<UgcOnly />} />
             <Route path="/builder/pages/:id" element={<Editor />} />
