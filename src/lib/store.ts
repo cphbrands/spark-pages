@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Page, Template, Lead, Block, Theme, Meta, defaultBlockProps, BlockType } from './schemas';
+
+export type PreviewMode = 'desktop' | 'tablet' | 'mobile';
 import { v4 as uuidv4 } from 'uuid';
 
 // Generate default templates
@@ -255,12 +257,12 @@ interface BuilderState {
   // Current editor state
   currentPageId: string | null;
   selectedBlockId: string | null;
-  previewMode: 'desktop' | 'mobile';
+  previewMode: 'desktop' | 'tablet' | 'mobile';
   
   // Actions
   setCurrentPage: (id: string | null) => void;
   setSelectedBlock: (id: string | null) => void;
-  setPreviewMode: (mode: 'desktop' | 'mobile') => void;
+  setPreviewMode: (mode: PreviewMode) => void;
   
   // Page actions
   createPageFromTemplate: (templateId: string) => Page;
@@ -309,7 +311,7 @@ export const useBuilderStore = create<BuilderState>()(
         redoStack: [],
         currentPageId: null,
         selectedBlockId: null,
-        previewMode: 'desktop',
+  previewMode: 'desktop', // Default value
 
       undo: () => {
         const { undoStack, redoStack, pages } = get();
@@ -335,7 +337,7 @@ export const useBuilderStore = create<BuilderState>()(
       
       setCurrentPage: (id) => set({ currentPageId: id, selectedBlockId: null }),
       setSelectedBlock: (id) => set({ selectedBlockId: id }),
-      setPreviewMode: (mode) => set({ previewMode: mode }),
+  setPreviewMode: (mode) => set({ previewMode: mode }), // Update state with new mode
       
       createPageFromTemplate: (templateId) => {
         const template = get().templates.find(t => t.id === templateId);

@@ -9,6 +9,12 @@ export type UgcItem = {
   status: 'Ready' | 'Processing' | 'Draft';
   thumb: string;
   updated: string;
+  // Optional richer metadata if stored in Firestore
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  productName?: string;
+  prompt?: string;
+  style?: 'ugc' | 'cinematic';
 };
 
 export type WizardProject = {

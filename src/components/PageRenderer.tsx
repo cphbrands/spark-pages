@@ -1,11 +1,11 @@
 import { Page } from '@/lib/schemas';
 import { BlockRenderer } from './BlockRenderer';
-import { useBuilderStore } from '@/lib/store';
+import { useBuilderStore, PreviewMode } from '@/lib/store';
 
 interface PageRendererProps {
   page: Page;
   isPreview?: boolean;
-  previewMode?: 'desktop' | 'mobile';
+  previewMode?: PreviewMode;
 }
 
 export function PageRenderer({ page, isPreview = false, previewMode = 'desktop' }: PageRendererProps) {
@@ -21,8 +21,12 @@ export function PageRenderer({ page, isPreview = false, previewMode = 'desktop' 
     });
   };
 
-  const containerStyle = isPreview && previewMode === 'mobile' 
-    ? { maxWidth: '375px', margin: '0 auto' }
+  const containerStyle = isPreview
+    ? previewMode === 'mobile'
+      ? { maxWidth: '375px', margin: '0 auto' }
+      : previewMode === 'tablet'
+        ? { maxWidth: '768px', margin: '0 auto' }
+        : { maxWidth: '1280px', margin: '0 auto' }
     : {};
 
   const blocks = Array.isArray(page.blocks) ? page.blocks : [];

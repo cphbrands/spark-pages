@@ -1,7 +1,7 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useBuilderStore } from '@/lib/store';
 import { useWizardStore } from '@/lib/wizard-store';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   ArrowLeft, 
   Monitor, 
@@ -12,14 +12,13 @@ import {
   ExternalLink,
   Plus,
   GripVertical,
-  ChevronUp,
-  ChevronDown,
   Copy,
   Trash2,
   Settings,
   Palette,
   RotateCcw,
   RotateCw,
+  TabletSmartphone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sidebar } from '@/components/Sidebar';
@@ -54,6 +53,7 @@ import { toast } from '@/hooks/use-toast';
 import { refineLandingPage } from '@/lib/refine-service';
 import { v4 as uuidv4 } from 'uuid';
 import { NICHE_OPTIONS, DARK_PATTERN_PRESETS } from '@/lib/conversionClient';
+import { fetchUgcItems, seedUgcItems, type UgcItem } from '@/lib/library-service';
 
 const blockTypeLabels: Record<BlockType, string> = {
   Hero: 'Hero Section',
@@ -152,7 +152,123 @@ export default function Editor() {
   const [isSavingCloud, setIsSavingCloud] = useState(false);
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const videoObjectUrlRef = useRef<string | null>(null);
   const [isGeneratingUGC, setIsGeneratingUGC] = useState(false);
+  const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
+  const [dragOverBlockId, setDragOverBlockId] = useState<string | null>(null);
+  const [blockSearch, setBlockSearch] = useState('');
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const lastSavedSnapshotRef = useRef<string>('');
+  const [draggingFaqIndex, setDraggingFaqIndex] = useState<number | null>(null);
+  const validationIssues = useMemo(() => {
+    if (!page) return {} as Record<string, string[]>;
+    const issues: Record<string, string[]> = {};
+    page.blocks.forEach((block) => {
+      const problems: string[] = [];
+      const p = block.props as Record<string, any>;
+      switch (block.type) {
+        case 'Hero':
+          if (!p.headline) problems.push('Headline missing');
+          if (!p.ctaText) problems.push('CTA text missing');
+          if (!p.ctaUrl) problems.push('CTA link missing');
+          break;
+        case 'CTASection':
+          if (!p.heading) problems.push('Heading missing');
+          if (!p.ctaText) problems.push('CTA text missing');
+          break;
+        case 'Form':
+          if (!p.heading) problems.push('Heading missing');
+          if (!p.submitText) problems.push('Submit text missing');
+          break;
+        case 'Pricing':
+          if (!p.price) problems.push('Price missing');
+          if (!Array.isArray(p.features) || p.features.length === 0) problems.push('Features missing');
+          break;
+        case 'Countdown':
+          if (!p.endAt) problems.push('End time missing');
+          break;
+        case 'FAQ':
+          if (!Array.isArray(p.items) || p.items.length === 0) {
+            problems.push('Add at least one FAQ');
+          } else {
+            p.items.forEach((item: any, idx: number) => {
+              if (!item?.question || !item?.answer) problems.push(`FAQ ${idx + 1} incomplete`);
+            });
+          }
+          break;
+        case 'UGCVideo':
+          if (!p.videoUrl) problems.push('Video URL missing');
+          break;
+        case 'ImageGallery':
+          if (!Array.isArray(p.images) || p.images.length === 0) problems.push('No images');
+          break;
+        case 'SocialProof':
+          if (!Array.isArray(p.testimonials) || p.testimonials.length === 0) problems.push('No testimonials');
+          break;
+        case 'Features':
+        case 'Benefits':
+          if (!Array.isArray(p.items) || p.items.length === 0) problems.push('No items');
+          break;
+        default:
+          break;
+      }
+      if (problems.length) issues[block.id] = problems;
+    });
+    return issues;
+  }, [page]);
+  const [ugcLibrary, setUgcLibrary] = useState<UgcItem[]>([]);
+  const [isLoadingUgcLibrary, setIsLoadingUgcLibrary] = useState(false);
+  const [ugcLibraryError, setUgcLibraryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (videoObjectUrlRef.current) {
+        URL.revokeObjectURL(videoObjectUrlRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!page) return;
+    const snapshot = JSON.stringify({ blocks: page.blocks, meta: page.meta, theme: page.theme });
+    if (!lastSavedSnapshotRef.current) {
+      lastSavedSnapshotRef.current = snapshot;
+      return;
+    }
+    const dirty = snapshot !== lastSavedSnapshotRef.current;
+    setIsDirty(dirty);
+  }, [page]);
+
+  useEffect(() => {
+    if (!page) return;
+    const interval = setInterval(async () => {
+      if (!isDirty || isAutoSaving) return;
+      setIsAutoSaving(true);
+      try {
+        await savePage(page);
+        lastSavedSnapshotRef.current = JSON.stringify({ blocks: page.blocks, meta: page.meta, theme: page.theme });
+        setIsDirty(false);
+        toast({ title: 'Autosaved', description: 'Your changes were saved.' });
+      } catch (err: unknown) {
+        toast({ title: 'Autosave failed', description: err instanceof Error ? err.message : 'Could not save automatically', variant: 'destructive' });
+      } finally {
+        setIsAutoSaving(false);
+      }
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [page, isDirty, isAutoSaving]);
+
+  useEffect(() => {
+    const handler = (event: BeforeUnloadEvent) => {
+      if (isDirty) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
   
   const handleDownloadJson = () => {
     if (!page) return;
@@ -521,6 +637,7 @@ Tone: Urgent, exclusive, transformational.`
   if (!page) return null;
 
   const handlePublish = () => {
+    if (!runPrePublishCheck()) return;
     try {
       publishPage(page.id);
       toast({
@@ -549,6 +666,55 @@ Tone: Urgent, exclusive, transformational.`
     setShowAddBlock(false);
   };
 
+  const runPrePublishCheck = () => {
+    if (!page) return false;
+    const pageIssues: string[] = [];
+    if (!page.meta.title) pageIssues.push('Page title missing');
+    if (!page.meta.slug) pageIssues.push('Slug missing');
+    const blockIssueEntries = Object.entries(validationIssues);
+    const firstProblemBlockId = blockIssueEntries[0]?.[0];
+    const totalBlockIssues = blockIssueEntries.reduce((acc, [, probs]) => acc + probs.length, 0);
+
+    if (pageIssues.length || totalBlockIssues > 0) {
+      const summary = [
+        ...pageIssues,
+        totalBlockIssues ? `${totalBlockIssues} block issues` : '',
+      ].filter(Boolean).join(' • ');
+      toast({ title: 'Fix before publishing', description: summary, variant: 'destructive' });
+      if (firstProblemBlockId) setSelectedBlock(firstProblemBlockId);
+      return false;
+    }
+    toast({ title: 'Pre-publish check passed', description: 'Ready to publish.' });
+    return true;
+  };
+
+  const handleReorderBlocks = (fromId: string, toId: string) => {
+    if (!page || fromId === toId) return;
+    const blocks = [...page.blocks];
+    const fromIndex = blocks.findIndex((b) => b.id === fromId);
+    const toIndex = blocks.findIndex((b) => b.id === toId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const [moved] = blocks.splice(fromIndex, 1);
+    blocks.splice(toIndex, 0, moved);
+    useBuilderStore.getState().updatePage(page.id, { blocks });
+    setSelectedBlock(moved.id);
+  };
+
+  const loadUgcLibrary = async () => {
+    if (ugcLibrary.length > 0 || isLoadingUgcLibrary) return;
+    setIsLoadingUgcLibrary(true);
+    setUgcLibraryError(null);
+    try {
+      const items = await fetchUgcItems();
+      setUgcLibrary(items.length ? items : seedUgcItems);
+    } catch (err: unknown) {
+      setUgcLibrary(seedUgcItems);
+      setUgcLibraryError('Using fallback library data');
+    } finally {
+      setIsLoadingUgcLibrary(false);
+    }
+  };
+
   const renderBlockEditor = () => {
     if (!selectedBlock) {
       return (
@@ -563,69 +729,294 @@ Tone: Urgent, exclusive, transformational.`
   type ZodFieldDef = { _def?: { typeName?: string; values?: string[]; innerType?: ZodFieldDef } };
   const schemaShape = schema.shape as Record<string, ZodFieldDef>;
 
+    if (selectedBlock.type === 'Countdown') {
+      const endAt = (props.endAt as string) || '';
+      const label = (props.label as string) || '';
+      const scarcityText = (props.scarcityText as string) || '';
+
+      return (
+        <div className="p-4 space-y-4">
+          <h3 className="font-semibold text-builder-text">Countdown Settings</h3>
+
+          <div className="space-y-2">
+            <Label className="text-builder-text-muted">Ends at</Label>
+            <Input
+              type="datetime-local"
+              value={endAt ? new Date(endAt).toISOString().slice(0,16) : ''}
+              onChange={(e) => {
+                const iso = e.target.value ? new Date(e.target.value).toISOString() : '';
+                updateBlock(page.id, selectedBlock.id, { endAt: iso });
+              }}
+              className="bg-builder-bg border-builder-border text-builder-text"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-builder-text-muted">Label</Label>
+            <Input
+              value={label}
+              onChange={(e) => updateBlock(page.id, selectedBlock.id, { label: e.target.value })}
+              className="bg-builder-bg border-builder-border text-builder-text"
+              placeholder="Sale ends in"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-builder-text-muted">Scarcity text</Label>
+            <Textarea
+              value={scarcityText}
+              onChange={(e) => updateBlock(page.id, selectedBlock.id, { scarcityText: e.target.value })}
+              className="bg-builder-bg border-builder-border text-builder-text"
+              rows={3}
+              placeholder="Only a few left..."
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (selectedBlock.type === 'FAQ') {
+      const items = Array.isArray(props.items) ? (props.items as { question: string; answer: string }[]) : [];
+      const maxItems = 20;
+
+      const updateItems = (next: { question: string; answer: string }[]) => {
+        updateBlock(page.id, selectedBlock.id, { items: next });
+      };
+
+      const handleAddItem = () => {
+        if (items.length >= maxItems) {
+          toast({ title: 'Limit reached', description: `You can add up to ${maxItems} FAQs.`, variant: 'destructive' });
+          return;
+        }
+        updateItems([
+          ...items,
+          { question: 'New question', answer: 'Answer goes here.' },
+        ]);
+      };
+
+      const handleRemoveItem = (index: number) => {
+        if (items.length <= 1) {
+          toast({ title: 'Keep at least one FAQ', variant: 'destructive' });
+          return;
+        }
+        const next = [...items];
+        next.splice(index, 1);
+        updateItems(next);
+      };
+
+      const handleChange = (index: number, field: 'question' | 'answer', value: string) => {
+        const next = [...items];
+        next[index] = { ...next[index], [field]: value };
+        updateItems(next);
+      };
+
+      const handleReorder = (from: number, to: number) => {
+        if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return;
+        const next = [...items];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        updateItems(next);
+      };
+
+      return (
+        <div className="p-4 space-y-4">
+          <h3 className="font-semibold text-builder-text">FAQ Settings</h3>
+
+          <div className="space-y-2">
+            <Label className="text-builder-text-muted">Heading</Label>
+            <Input
+              value={(props.heading as string) || ''}
+              onChange={(e) => updateBlock(page.id, selectedBlock.id, { heading: e.target.value })}
+              className="bg-builder-bg border-builder-border text-builder-text"
+              placeholder="Frequently Asked Questions"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-builder-text-muted">Questions</Label>
+              <span className="text-xs text-builder-text-muted">{items.length}/{maxItems}</span>
+            </div>
+            <div className="space-y-3">
+              {items.map((item, index) => (
+                <div
+                  key={index}
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggingFaqIndex(index);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (draggingFaqIndex !== null && draggingFaqIndex !== index) {
+                      e.dataTransfer.dropEffect = 'move';
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggingFaqIndex !== null && draggingFaqIndex !== index) {
+                      handleReorder(draggingFaqIndex, index);
+                    }
+                    setDraggingFaqIndex(null);
+                  }}
+                  onDragEnd={() => setDraggingFaqIndex(null)}
+                  className={cn(
+                    "rounded-lg border p-3 bg-builder-surface",
+                    draggingFaqIndex === index ? "opacity-80 border-primary" : "border-builder-border"
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    <GripVertical className="w-4 h-4 text-builder-text-muted mt-1 cursor-grab" />
+                    <div className="flex-1 space-y-2">
+                      <Input
+                        value={item.question}
+                        onChange={(e) => handleChange(index, 'question', e.target.value)}
+                        className="bg-builder-bg border-builder-border text-builder-text"
+                        placeholder={`Question ${index + 1}`}
+                      />
+                      <Textarea
+                        value={item.answer}
+                        onChange={(e) => handleChange(index, 'answer', e.target.value)}
+                        className="bg-builder-bg border-builder-border text-builder-text"
+                        rows={3}
+                        placeholder="Answer"
+                      />
+                    </div>
+                    <button
+                      onClick={() => handleRemoveItem(index)}
+                      className="p-2 text-destructive hover:bg-destructive/10 rounded"
+                      aria-label="Remove FAQ item"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button onClick={handleAddItem} variant="outline" className="w-full">
+              Add FAQ item
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     if (selectedBlock.type === 'UGCVideo') {
       return (
         <div className="p-4 space-y-4">
           <h3 className="font-semibold text-builder-text">UGC Video Settings</h3>
 
           <div className="space-y-2">
-            <Label className="text-builder-text-muted">Product name</Label>
-            <Input
-              value={(props.productName as string) || ''}
-              onChange={(e) => updateBlock(page.id, selectedBlock.id, { productName: e.target.value })}
-              className="bg-builder-bg border-builder-border text-builder-text"
-              placeholder="e.g. GlowBoost Serum"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-builder-text-muted">Product image URL</Label>
+            <Label className="text-builder-text-muted">Video URL (existing)</Label>
             <Input
               type="url"
-              value={(props.imageUrl as string) || ''}
-              onChange={(e) => updateBlock(page.id, selectedBlock.id, { imageUrl: e.target.value })}
+              value={(props.videoUrl as string) || ''}
+              onChange={(e) => updateBlock(page.id, selectedBlock.id, { videoUrl: e.target.value, status: e.target.value ? 'ready' : 'idle' })}
               className="bg-builder-bg border-builder-border text-builder-text"
-              placeholder="https://..."
+              placeholder="Paste an uploaded video URL"
             />
             <Input
               type="file"
-              accept="image/*"
+              accept="video/*"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () => {
-                  const result = reader.result as string;
-                  updateBlock(page.id, selectedBlock.id, { imageUrl: result });
-                };
-                reader.readAsDataURL(file);
+                if (!file.type.startsWith('video/')) {
+                  toast({ title: 'Invalid file', description: 'Please choose a video file (mp4, mov, webm).', variant: 'destructive' });
+                  return;
+                }
+                if (videoObjectUrlRef.current) URL.revokeObjectURL(videoObjectUrlRef.current);
+                const objectUrl = URL.createObjectURL(file);
+                videoObjectUrlRef.current = objectUrl;
+                updateBlock(page.id, selectedBlock.id, {
+                  videoUrl: objectUrl,
+                  status: 'ready',
+                  error: undefined,
+                  metadata: { aiGenerated: false, disclosureText: 'Uploaded video (local preview)' },
+                });
+                toast({ title: 'Video added', description: 'Local preview attached. Save/publish with a hosted URL for production.' });
               }}
               className="bg-builder-bg border-builder-border text-builder-text"
             />
-            <p className="text-xs text-builder-text-muted">Upload will embed as data URL for quick testing; swap for a hosted URL in production.</p>
+            <Label className="text-builder-text-muted">Thumbnail URL</Label>
+            <Input
+              type="url"
+              value={(props.thumbnailUrl as string) || ''}
+              onChange={(e) => updateBlock(page.id, selectedBlock.id, { thumbnailUrl: e.target.value })}
+              className="bg-builder-bg border-builder-border text-builder-text"
+              placeholder="Optional thumbnail for the video"
+            />
+            {(props.videoUrl as string) && (
+              <div className="mt-2 space-y-1 text-xs text-builder-text-muted">
+                <div className="rounded border border-builder-border bg-builder-surface p-2 flex items-center gap-3">
+                  <div className="w-16 h-10 rounded overflow-hidden bg-builder-bg border border-builder-border flex items-center justify-center">
+                    {props.thumbnailUrl ? (
+                      <img src={props.thumbnailUrl as string} alt="Thumbnail" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[10px] text-builder-text-muted">No thumbnail</span>
+                    )}
+                  </div>
+                  <div className="flex-1 truncate text-builder-text">{props.videoUrl as string}</div>
+                </div>
+                {(props.videoUrl as string).startsWith('blob:') && (
+                  <div className="text-amber-500">Local preview only — use a hosted URL before publishing.</div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label className="text-builder-text-muted">Style preset</Label>
-            <Select
-              value={(props.style as string) || 'ugc'}
-              onValueChange={(v) => updateBlock(page.id, selectedBlock.id, { style: v })}
-            >
-              <SelectTrigger className="bg-builder-bg border-builder-border text-builder-text">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-builder-surface border-builder-border">
-                <SelectItem value="ugc" className="text-builder-text">UGC / handheld</SelectItem>
-                <SelectItem value="cinematic" className="text-builder-text">Cinematic ad</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-builder-text-muted">Status</Label>
-            <div className="text-sm text-builder-text">
-              {(props.status as string) || 'idle'} {props.error ? `— ${props.error}` : ''}
+            <Label className="text-builder-text-muted">Import from UGC library</Label>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={loadUgcLibrary} disabled={isLoadingUgcLibrary}>
+                {isLoadingUgcLibrary ? 'Loading…' : ugcLibrary.length ? 'Reload' : 'Load library'}
+              </Button>
+              {ugcLibraryError && <span className="text-xs text-amber-600">{ugcLibraryError}</span>}
             </div>
+            {ugcLibrary.length > 0 && (
+              <Select
+                onValueChange={(id) => {
+                  const item = ugcLibrary.find((x) => x.id === id);
+                  if (!item) return;
+                  const updates: Record<string, unknown> = {
+                    productName: item.productName || item.title,
+                    imageUrl: item.thumbnailUrl || item.thumb,
+                    prompt: item.prompt || props.prompt,
+                    style: item.style || props.style || 'ugc',
+                  };
+                  if (item.videoUrl) {
+                    updates.videoUrl = item.videoUrl;
+                    updates.thumbnailUrl = item.thumbnailUrl || item.thumb;
+                    updates.status = 'ready';
+                    updates.metadata = {
+                      aiGenerated: true,
+                      disclosureText: 'Imported from UGC library',
+                    };
+                  }
+                  updateBlock(page.id, selectedBlock.id, updates);
+                  toast({ title: 'UGC imported', description: item.title });
+                }}
+              >
+                <SelectTrigger className="bg-builder-bg border-builder-border text-builder-text">
+                  <SelectValue placeholder="Choose an item" />
+                </SelectTrigger>
+                <SelectContent className="bg-builder-surface border-builder-border max-h-64 overflow-auto">
+                  {ugcLibrary.map((item) => (
+                    <SelectItem key={item.id} value={item.id} className="text-builder-text">
+                      <div className="flex items-center gap-2">
+                        {(item.thumbnailUrl || item.thumb) && (
+                          <img src={(item.thumbnailUrl || item.thumb) as string} alt="thumb" className="w-8 h-8 rounded object-cover" />
+                        )}
+                        <div className="text-left">
+                          <div className="text-sm">{item.title}</div>
+                          <div className="text-[11px] text-builder-text-muted">{item.status || 'ready'}</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
       );
@@ -794,6 +1185,19 @@ Tone: Urgent, exclusive, transformational.`
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => setPreviewMode('tablet')}
+              className={cn(
+                "h-8 px-3",
+                previewMode === 'tablet' 
+                  ? "bg-builder-surface-hover text-builder-text" 
+                  : "text-builder-text-muted hover:text-builder-text"
+              )}
+            >
+              <TabletSmartphone className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setPreviewMode('mobile')}
               className={cn(
                 "h-8 px-3",
@@ -816,6 +1220,14 @@ Tone: Urgent, exclusive, transformational.`
           >
             <ExternalLink className="w-4 h-4 mr-2" />
             Preview Live
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={runPrePublishCheck}
+            className="border-builder-border text-builder-text hover:bg-builder-surface-hover"
+          >
+            Check page
           </Button>
           
           {page.status === 'published' ? (
@@ -864,6 +1276,12 @@ Tone: Urgent, exclusive, transformational.`
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
+            <Input
+              value={blockSearch}
+              onChange={(e) => setBlockSearch(e.target.value)}
+              placeholder="Search blocks"
+              className="bg-builder-bg border-builder-border text-builder-text"
+            />
             
             {showAddBlock && (
               <div className="grid grid-cols-2 gap-2 mb-4 animate-fade-in">
@@ -888,45 +1306,69 @@ Tone: Urgent, exclusive, transformational.`
               </div>
             ) : (
               <div className="space-y-2">
-                {page.blocks.map((block, index) => (
+                {page.blocks
+                  .filter((block) => blockTypeLabels[block.type].toLowerCase().includes(blockSearch.toLowerCase()))
+                  .map((block, index) => (
                   <div
                     key={block.id}
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggingBlockId(block.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (draggingBlockId && draggingBlockId !== block.id) {
+                        setDragOverBlockId(block.id);
+                        e.dataTransfer.dropEffect = 'move';
+                      }
+                    }}
+                    onDragLeave={() => setDragOverBlockId((prev) => (prev === block.id ? null : prev))}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggingBlockId) handleReorderBlocks(draggingBlockId, block.id);
+                      setDragOverBlockId(null);
+                      setDraggingBlockId(null);
+                    }}
+                    onDragEnd={() => {
+                      setDragOverBlockId(null);
+                      setDraggingBlockId(null);
+                    }}
                     onClick={() => setSelectedBlock(block.id)}
                     className={cn(
-                      "block-item flex items-center gap-2",
-                      selectedBlockId === block.id && "selected"
+                      "block-item group flex items-center gap-2",
+                      selectedBlockId === block.id && "selected",
+                      dragOverBlockId === block.id && draggingBlockId !== block.id && "ring-2 ring-primary/60 shadow-[0_0_0_2px_rgba(59,130,246,0.25)]"
                     )}
                   >
-                    <GripVertical className="w-4 h-4 text-builder-text-muted flex-shrink-0" />
+                    <GripVertical className="w-4 h-4 text-builder-text-muted flex-shrink-0 cursor-grab" />
                     
-                    <span className="flex-1 text-sm text-builder-text truncate">
+                    <span className="flex-1 text-sm text-builder-text truncate flex items-center gap-2">
                       {blockTypeLabels[block.type]}
+                      {validationIssues[block.id]?.length ? (
+                        <span className="inline-flex items-center justify-center px-1.5 h-5 text-[11px] rounded-full bg-destructive/20 text-destructive">
+                          {validationIssues[block.id].length}
+                        </span>
+                      ) : null}
                     </span>
                     
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); moveBlock(page.id, block.id, 'up'); }}
-                        disabled={index === 0}
-                        className="p-1 hover:bg-builder-surface-hover rounded disabled:opacity-30"
-                      >
-                        <ChevronUp className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); moveBlock(page.id, block.id, 'down'); }}
-                        disabled={index === page.blocks.length - 1}
-                        className="p-1 hover:bg-builder-surface-hover rounded disabled:opacity-30"
-                      >
-                        <ChevronDown className="w-3 h-3" />
-                      </button>
+                    <div
+                      className={cn(
+                        "flex items-center gap-1 transition-opacity",
+                        selectedBlockId === block.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      )}
+                    >
                       <button
                         onClick={(e) => { e.stopPropagation(); duplicateBlock(page.id, block.id); }}
                         className="p-1 hover:bg-builder-surface-hover rounded"
+                        aria-label="Duplicate block"
                       >
                         <Copy className="w-3 h-3" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); deleteBlock(page.id, block.id); }}
                         className="p-1 hover:bg-destructive/20 rounded text-destructive"
+                        aria-label="Delete block"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -943,7 +1385,11 @@ Tone: Urgent, exclusive, transformational.`
           <div 
             className={cn(
               "mx-auto bg-white rounded-xl shadow-2xl overflow-hidden transition-all duration-300",
-              previewMode === 'mobile' ? "max-w-[375px]" : "max-w-full"
+              previewMode === 'mobile'
+                ? "max-w-[375px]"
+                : previewMode === 'tablet'
+                  ? "max-w-[768px]"
+                  : "max-w-[1280px]"
             )}
           >
             <PageRenderer page={page} isPreview previewMode={previewMode} />
